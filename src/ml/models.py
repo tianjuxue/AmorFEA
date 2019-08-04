@@ -1,11 +1,14 @@
+#TODO(Tianju)
+# Change the fully connected network to a more advanced architecture like CNN
+
 from torch import nn, optim
 from torch.nn import functional as F
 import torch
 
 
-class ConvSolver(nn.Module):
+class NeuralNetSolver(nn.Module):
     def __init__(self, args):
-        super(ConvSolver, self).__init__()
+        super(NeuralNetSolver, self).__init__()
         self.args = args
         self.encoder = nn.Sequential(
             nn.Linear(31 * 31, 128),

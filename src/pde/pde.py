@@ -30,10 +30,8 @@ class PDE(object):
         v = fa.TestFunction(self.V)
 
         E = self._energy_density(u) * fa.dx
-
         bcs = []
-
-        # If boundary functions are defined using one global function
+        
         if boundary_fn is not None:
             boundary_bc = fa.DirichletBC(self.V, boundary_fn, self.exterior)
             bcs = bcs + [boundary_bc]

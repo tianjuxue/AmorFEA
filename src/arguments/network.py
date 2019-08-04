@@ -10,8 +10,6 @@ def add_args(parser):
                         help='how many batches to wait before logging training status')
     parser.add_argument('--input_size', type=int, default=28, 
                         help='input size')
-    parser.add_argument('--hidden_size', type=int, default=10, 
-                        help='hidden size')
     parser.add_argument('--lr', type=float, default=1e-3, 
                         help='learning rate')
     parser.add_argument('--epochs', type=int, default=100, metavar='N',

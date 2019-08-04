@@ -16,10 +16,6 @@ class Poisson(PDE):
                                 args.n_cells) 
         self.mesh = mesh
 
-        # file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
-        # mesh.rename('mesh', 'mesh')
-        # file << mesh
-
     def _build_function_space(self):
         L0 = self.args.L0
         n_cells = self.args.n_cells
@@ -72,7 +68,9 @@ class Poisson(PDE):
     # Constitutive relationships
     def _energy_density(self, u):
         # variational energy density of u
-        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) - u
+        f = fa.Expression(("sin(2*pi/L*x[0])"), L=self.args.n_cells*self.args.L0, degree=3)
+        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) - u*f
         return energy
         
+
 
