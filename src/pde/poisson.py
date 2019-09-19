@@ -69,7 +69,7 @@ class Poisson(PDE):
     def _energy_density(self, u):
         # variational energy density of u
         f = fa.Expression(("sin(2*pi/L*x[0])"), L=self.args.n_cells*self.args.L0, degree=3)
-        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) - u*f
+        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) - u
         return energy
         
 

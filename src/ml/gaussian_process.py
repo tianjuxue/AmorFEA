@@ -63,7 +63,7 @@ def RBF_kernel(x1, x2):
 def mean(x):
     return 0
 
-def visualize(data)
+def visualize(data):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     X = np.linspace(0, 1, 31)

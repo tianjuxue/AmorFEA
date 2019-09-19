@@ -14,3 +14,7 @@ def add_args(parser):
                         help='learning rate')
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train')
+    parser.add_argument('--edge', type=int, default=31, 
+                        help='number of degrees of freedom along each edge')
+    parser.add_argument('--h', type=float, default=0.5, 
+                        help='mesh size')

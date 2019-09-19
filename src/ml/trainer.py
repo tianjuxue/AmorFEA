@@ -114,14 +114,15 @@ def test_input():
             input_data[i][j] = np.sin(2*np.pi/L*x_coor)
 
     # input_data = torch.ones((1, 1, 31, 31), dtype=torch.float)
+    
     return input_data.view(1, 1, 31, 31)
 
-def save_solution(output_data, args):
+def save_solution(output_data, args, name):
     solution_np = output_data.data.numpy().reshape(31, 31)
     plt.imshow(solution_np, cmap='bwr')  
     plt.axis('off') 
-    plt.savefig(args.root_path + '/' + args.images_path + "/solution_star.png", bbox_inches='tight')
-    print(output_data.max())
+    plt.savefig(args.root_path + '/' + args.images_path + "/" + name + ".png", bbox_inches='tight')
+    # print(output_data.max())
 
 if __name__ == "__main__":
     args = arguments.args
@@ -146,14 +147,14 @@ if __name__ == "__main__":
     train_loader =  DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
-    analysis_mode = False
+    analysis_mode = True
 
     if analysis_mode:
         model_path = args.root_path + '/' + args.model_path + '/model'
         model =  torch.load(model_path)
         input_data = test_input()
         output_data = model(input_data)
-        save_solution(output_data)
+        save_solution(output_data, args, "star_solution")
     else:
         model = NeuralNetSolver(args)
         optimizer = optim.Adam(model.parameters(), lr=args.lr)

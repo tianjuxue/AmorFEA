@@ -6,30 +6,40 @@ from torch.nn import functional as F
 import torch
 
 
+# class NeuralNetSolver(nn.Module):
+#     def __init__(self, args):
+#         super(NeuralNetSolver, self).__init__()
+#         self.args = args
+#         self.encoder = nn.Sequential(
+#             nn.Linear(31 * 31, 128),
+#             nn.SELU(True),
+#             nn.Linear(128, 128),
+#             nn.SELU(True), 
+#             nn.Linear(128, 128), 
+#             nn.SELU(True), 
+#             nn.Linear(128, 128))
+#         self.decoder = nn.Sequential(
+#             nn.Linear(128, 128),
+#             nn.SELU(True),
+#             nn.Linear(128, 128),
+#             nn.SELU(True),
+#             nn.Linear(128, 128),
+#             nn.SELU(True), 
+#             nn.Linear(128, 31 * 31))
+
+#     def forward(self, x):
+#         x = self.encoder(x.view(x.shape[0], 31*31))
+#         x = self.decoder(x)
+#         return x.view(x.shape[0], 1, 31, 31)
+
 class NeuralNetSolver(nn.Module):
     def __init__(self, args):
         super(NeuralNetSolver, self).__init__()
         self.args = args
-        self.encoder = nn.Sequential(
-            nn.Linear(31 * 31, 128),
-            nn.SELU(True),
-            nn.Linear(128, 128),
-            nn.SELU(True), 
-            nn.Linear(128, 128), 
-            nn.SELU(True), 
-            nn.Linear(128, 128))
-        self.decoder = nn.Sequential(
-            nn.Linear(128, 128),
-            nn.SELU(True),
-            nn.Linear(128, 128),
-            nn.SELU(True),
-            nn.Linear(128, 128),
-            nn.SELU(True), 
-            nn.Linear(128, 31 * 31))
+        self.fc = nn.Linear(31*31, 31*31)
 
     def forward(self, x):
-        x = self.encoder(x.view(x.shape[0], 31*31))
-        x = self.decoder(x)
+        x = self.fc(x.view(x.shape[0], 31*31))
         return x.view(x.shape[0], 1, 31, 31)
 
 # class ConvSolver(nn.Module):
