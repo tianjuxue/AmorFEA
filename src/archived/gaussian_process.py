@@ -12,7 +12,7 @@ class GaussianProcess(object):
         self.args = args
 
     def generate_input_data(self, n_samps=3000):
-        N = 4
+        N = 31
         L0 = 1.
         material_distribution = np.zeros((N, N))
         gp_field_index =  np.zeros((2, N, N))
@@ -56,18 +56,18 @@ def polar(x, y):
 
 def RBF_kernel(x1, x2):
     sigma = 1
-    l = 0.1
+    l = 0.5
     k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
     return k
  
 def mean(x):
     return 0
 
-def visualize(data, N):
+def visualize(data):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    X = np.linspace(0, 1, N)
-    Y = np.linspace(0, 1, N)
+    X = np.linspace(0, 1, 31)
+    Y = np.linspace(0, 1, 31)
     X, Y = np.meshgrid(X, Y)
     Z = data[0]
     surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.coolwarm,
@@ -78,7 +78,6 @@ def visualize(data, N):
 if __name__ == '__main__':
     args = arguments.args
     gp = GaussianProcess(args)
-    data = gp.generate_input_data(n_samps=3000)
-    visualize(data, 4)
+    data = gp.generate_input_data()
     data = np.expand_dims(data, axis=1)
-    np.save(args.root_path + '/' + args.numpy_path + '/GP-3000-1-4-4.npy', data)
+    np.save(args.root_path + '/' + args.numpy_path + '/GP-3000-1-31-31.npy', data)

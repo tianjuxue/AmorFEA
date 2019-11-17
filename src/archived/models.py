@@ -36,11 +36,11 @@ class NeuralNetSolver(nn.Module):
     def __init__(self, args):
         super(NeuralNetSolver, self).__init__()
         self.args = args
-        self.fc = nn.Linear(args.input_size, args.input_size, bias=False)
+        self.fc = nn.Linear(31*31, 31*31, bias=False)
 
     def forward(self, x):
-        x = self.fc(x)
-        return x
+        x = self.fc(x.view(x.shape[0], 31*31))
+        return x.view(x.shape[0], 1, 31, 31)
 
 # class ConvSolver(nn.Module):
 #     def __init__(self, args):

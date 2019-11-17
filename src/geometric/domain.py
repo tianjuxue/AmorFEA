@@ -11,13 +11,17 @@ class Graph(object):
         self.adjacency_list = self._adjacency_list_from_adjacency_matrix()
         self.ordered_adjacency_list = self._order_adjacency()
         self.triangle_area_sum = self._compute_area()
-        self.gradient_operator_x1 = self._assemble_gradient(self.x2, 0)
-        self.gradient_operator_x2 = self._assemble_gradient(self.x1, 1)
-
-        print(self._coo)
-        print(self.ordered_adjacency_list)
-        print(self.triangle_area_sum)
-        print(self.gradient_operator_x2)
+        self.weighted_area = self._get_weighted_area()
+        self.gradient_x1 = self._assemble_gradient(self.x2, 0)
+        self.gradient_x2 = self._assemble_gradient(self.x1, 1)
+        self.reset_matrix_boundary = np.diag(self._boundary_flags)
+        self.reset_matrix_interior = np.identity(self.num_vertices) - self.reset_matrix_boundary
+        # print(self._coo)
+        # print(self.ordered_adjacency_list)
+        # print(self.triangle_area_sum)
+        # print(self.gradient_x1)
+        # print(self.reset_matrix_boundary)
+        # print(self.reset_matrix_interior)
 
     def _assemble_gradient(self, x, flag):
         mult_1 = 1 if flag == 1 else -1
@@ -29,14 +33,10 @@ class Graph(object):
             for j in range(range_j):
                 idx_crt = ordered_adjacency[j]
                 idx_next = ordered_adjacency[(j + 1) % len(ordered_adjacency)]
-                gradient_operator[i][idx_next] = gradient_operator[i][idx_next] \
-                                                 + mult_1/(2*self.triangle_area_sum[i])*(x[idx_crt] - x[i])
-                gradient_operator[i][i] = gradient_operator[i][i] \
-                                          + mult_2/(2*self.triangle_area_sum[i])*(x[idx_crt] - x[i])
-                gradient_operator[i][idx_crt] = gradient_operator[i][idx_crt] \
-                                                + mult_2/(2*self.triangle_area_sum[i])*(x[idx_next] - x[i])
-                gradient_operator[i][i] = gradient_operator[i][i] \
-                                          + mult_1/(2*self.triangle_area_sum[i])*(x[idx_next] - x[i])
+                gradient_operator[i][idx_next] += mult_1/(2*self.triangle_area_sum[i])*(x[idx_crt] - x[i])
+                gradient_operator[i][i] += mult_2/(2*self.triangle_area_sum[i])*(x[idx_crt] - x[i])
+                gradient_operator[i][idx_crt] += mult_2/(2*self.triangle_area_sum[i])*(x[idx_next] - x[i])
+                gradient_operator[i][i] += mult_1/(2*self.triangle_area_sum[i])*(x[idx_next] - x[i])
         return gradient_operator
 
     def _compute_area(self):
@@ -106,6 +106,9 @@ class GraphMSHR(Graph):
 
         super(GraphMSHR, self).__init__(args)
 
+    def _get_weighted_area(self):
+        return 1./3.*self.triangle_area_sum
+
     def _make_oriented(self, cells):
         for i, cell in enumerate(cells):
             if self._signed_tri_area(self._coo[cell[0]], 
@@ -166,7 +169,6 @@ class GraphManual(Graph):
     """Graph created by ourselves.
     """
     def __init__(self, args):
-
         self.num_ver_per_line = 4
         self.num_vertices =  self.num_ver_per_line**2
         self.adjacency_matrix = self._get_adjacency_matrix()
@@ -175,6 +177,9 @@ class GraphManual(Graph):
         self.x2 = self._coo[:, 1]
         self._boundary_flags = self._get_boundary_flags()  
         super(GraphManual, self).__init__(args)
+
+    def _get_weighted_area(self):
+        return 0.5*self.triangle_area_sum
 
     def _get_coo(self):
         total_length = 1.
