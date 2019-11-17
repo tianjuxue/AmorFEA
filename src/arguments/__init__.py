@@ -33,3 +33,4 @@ else:
 import sys
 import numpy as np
 np.set_printoptions(threshold=sys.maxsize, linewidth=1000, suppress=True)
+np.set_printoptions(precision=3)

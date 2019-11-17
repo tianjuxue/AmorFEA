@@ -113,7 +113,7 @@ def test_input():
             x_coor = j*h
             input_data[i][j] = np.sin(2*np.pi/L*x_coor)
 
-    # input_data = torch.ones((1, 1, 31, 31), dtype=torch.float)
+    input_data = torch.ones((1, 1, 31, 31), dtype=torch.float)
     
     return input_data.view(1, 1, 31, 31)
 
@@ -122,7 +122,14 @@ def save_solution(output_data, args, name):
     plt.imshow(solution_np, cmap='bwr')  
     plt.axis('off') 
     plt.savefig(args.root_path + '/' + args.images_path + "/" + name + ".png", bbox_inches='tight')
-    # print(output_data.max())
+    print(output_data.max())
+
+def impose_bc(x):
+    x[:, :, :, :1] = 0
+    x[:, :, :, -1:] = 0      
+    x[:, :, :1, :] = 0
+    x[:, :, -1:, :] = 0
+    return x
 
 if __name__ == "__main__":
     args = arguments.args
@@ -142,6 +149,11 @@ if __name__ == "__main__":
     torch.tensor(test_X).float(), \
     torch.tensor(test_Y).float() 
 
+
+    train_X = impose_bc(train_X)
+    test_X = impose_bc(test_X)
+
+
     train_data = TensorDataset(train_X, train_Y)
     test_data = TensorDataset(test_X, test_Y)
     train_loader =  DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
@@ -152,7 +164,10 @@ if __name__ == "__main__":
     if analysis_mode:
         model_path = args.root_path + '/' + args.model_path + '/model'
         model =  torch.load(model_path)
+        # print(model.fc.weight.data.numpy())
+        # print(model.fc.bias.data.numpy())
         input_data = test_input()
+        input_data = impose_bc(input_data)
         output_data = model(input_data)
         save_solution(output_data, args, "star_solution")
     else:
