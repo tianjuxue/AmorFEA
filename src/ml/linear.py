@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import collections
 from .. import arguments
 from .models import NeuralNetSolver
-from ..geometric.domain import GraphManual
+from ..graph.domain import GraphManual, GraphMSHR
 
 
 def loss_function(x_source, 
@@ -122,23 +122,27 @@ def ground_truth(operators):
     tmp = -torch.matmul(gradient_x1_operator, gradient_x1_operator) \
            -torch.matmul(gradient_x2_operator, gradient_x2_operator)
     A = torch.matmul(interior_operator, tmp) + boundary_operator
-    print(A.data.numpy())
+    # print(A.data.numpy())
     A_inv = A.inverse()
-    print(A_inv.data.numpy())
+    return A_inv.data.numpy()
+
 
 
 if __name__ == "__main__":
     args = arguments.args
-    graph_manual = GraphManual(args)
+    graph = GraphManual(args)
+    # graph = GraphMSHR(args)
+    args.input_size = graph.num_vertices
 
-    gradient_x1_operator = torch.tensor(graph_manual.gradient_x1).float()
-    gradient_x2_operator = torch.tensor(graph_manual.gradient_x2).float()
-    boundary_operator = torch.tensor(graph_manual.reset_matrix_boundary).float()
-    interior_operator = torch.tensor(graph_manual.reset_matrix_interior).float()
+    gradient_x1_operator = torch.tensor(graph.gradient_x1).float()
+    gradient_x2_operator = torch.tensor(graph.gradient_x2).float()
+    boundary_operator = torch.tensor(graph.reset_matrix_boundary).float()
+    interior_operator = torch.tensor(graph.reset_matrix_interior).float()
     operators = [gradient_x1_operator, gradient_x2_operator, boundary_operator, interior_operator]
 
     torch.manual_seed(args.seed)
-    data_X = np.load(args.root_path + '/' + args.numpy_path + '/GP-3000-1-4-4.npy')
+    data_X = np.load(args.root_path + '/' + args.numpy_path + '/' + graph.name +
+                     '-GP-300000-' + str(graph.num_vertices) + '.npy')
 
     # Everything related to Y is useless, should be elimiated
     train_X, test_X = shuffle_data(data_X)
@@ -154,15 +158,18 @@ if __name__ == "__main__":
     train_loader =  DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
-    analysis_mode = True
+    analysis_mode = False
 
     if analysis_mode:
         model_path = args.root_path + '/' + args.model_path + '/model'
         model =  torch.load(model_path)
-        print(model.fc.weight.data.numpy())
         # print(model.fc.bias.data.numpy())
-        ground_truth(operators)
-
+        W_trained = model.fc.weight.data.numpy()
+        print(W_trained)
+        print('\n\n\n')
+        W_true = ground_truth(operators)
+        print(W_true)
+        # print(np.max(np.abs(W_trained - W_true)))
 
         # input_data = test_input()
         # input_data = impose_bc(input_data)

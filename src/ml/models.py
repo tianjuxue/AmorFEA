@@ -11,26 +11,16 @@ import torch
 #         super(NeuralNetSolver, self).__init__()
 #         self.args = args
 #         self.encoder = nn.Sequential(
-#             nn.Linear(31 * 31, 128),
-#             nn.SELU(True),
-#             nn.Linear(128, 128),
-#             nn.SELU(True), 
-#             nn.Linear(128, 128), 
-#             nn.SELU(True), 
-#             nn.Linear(128, 128))
+#             nn.Linear(args.input_size, args.input_size),
+#             nn.SELU(True))
 #         self.decoder = nn.Sequential(
-#             nn.Linear(128, 128),
-#             nn.SELU(True),
-#             nn.Linear(128, 128),
-#             nn.SELU(True),
-#             nn.Linear(128, 128),
-#             nn.SELU(True), 
-#             nn.Linear(128, 31 * 31))
+#             nn.Linear(args.input_size, args.input_size),
+#             nn.SELU(True))
 
 #     def forward(self, x):
-#         x = self.encoder(x.view(x.shape[0], 31*31))
+#         x = self.encoder(x)
 #         x = self.decoder(x)
-#         return x.view(x.shape[0], 1, 31, 31)
+#         return x
 
 class NeuralNetSolver(nn.Module):
     def __init__(self, args):

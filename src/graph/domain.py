@@ -1,5 +1,6 @@
 import numpy as np
 import fenics as fa
+import mshr
 from .. import arguments
 
 
@@ -16,7 +17,7 @@ class Graph(object):
         self.gradient_x2 = self._assemble_gradient(self.x1, 1)
         self.reset_matrix_boundary = np.diag(self._boundary_flags)
         self.reset_matrix_interior = np.identity(self.num_vertices) - self.reset_matrix_boundary
-        # print(self._coo)
+        # print(self.coo)
         # print(self.ordered_adjacency_list)
         # print(self.triangle_area_sum)
         # print(self.gradient_x1)
@@ -45,9 +46,9 @@ class Graph(object):
             ordered_adjacency = self.ordered_adjacency_list[i]
             range_j = len(ordered_adjacency) - 1 if self._boundary_flags[i] == 1 else len(ordered_adjacency)
             for j in range(range_j):
-                area[i] = area[i] + self._signed_tri_area(self._coo[i], 
-                                                   self._coo[ordered_adjacency[j]], 
-                                                   self._coo[ordered_adjacency[(j + 1) % len(ordered_adjacency)]])
+                area[i] = area[i] + self._signed_tri_area(self.coo[i], 
+                                                   self.coo[ordered_adjacency[j]], 
+                                                   self.coo[ordered_adjacency[(j + 1) % len(ordered_adjacency)]])
         return area
 
     def _signed_tri_area(self, coo_0, coo_1, coo_2):
@@ -93,17 +94,16 @@ class GraphMSHR(Graph):
     """
     def __init__(self, args, mesh_parameters=None):
         # replaced by something like namedtuple
-        self.mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3) 
-        self._coo = self.mesh.coordinates()
+        # self.mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3) 
+        self.mesh = mshr.generate_mesh(mshr.Circle(fa.Point(0, 0), 1), 10)
+        self.coo = self.mesh.coordinates()
         self._cells = self._make_oriented(self.mesh.cells())
         self.num_vertices = self.mesh.num_vertices()
         self.adjacency_matrix = self._adjacency_matrix_from_cells()
-        self.x1 = self._coo[:, 0]
-        self.x2 = self._coo[:, 1]
+        self.x1 = self.coo[:, 0]
+        self.x2 = self.coo[:, 1]
         self._boundary_flags = self._get_boundary_flags()
-
-        print(self._boundary_flags)
-
+        self.name = 'mshr' 
         super(GraphMSHR, self).__init__(args)
 
     def _get_weighted_area(self):
@@ -111,9 +111,9 @@ class GraphMSHR(Graph):
 
     def _make_oriented(self, cells):
         for i, cell in enumerate(cells):
-            if self._signed_tri_area(self._coo[cell[0]], 
-                              self._coo[cell[1]],
-                              self._coo[cell[2]]) < 0:
+            if self._signed_tri_area(self.coo[cell[0]], 
+                              self.coo[cell[1]],
+                              self.coo[cell[2]]) < 0:
                 tmp = cells[i][1]
                 cells[i][1] = cells[i][2]
                 cells[i][2] = tmp
@@ -125,7 +125,7 @@ class GraphMSHR(Graph):
         boundary_flags = np.zeros(self.num_vertices)
         for i in range(self.num_vertices):
             for bcoo in bmesh_coos:
-                if np.linalg.norm(bcoo - self._coo[i]) < 1e-8:
+                if np.linalg.norm(bcoo - self.coo[i]) < 1e-8:
                     boundary_flags[i] = 1
         return boundary_flags
 
@@ -136,7 +136,6 @@ class GraphMSHR(Graph):
                 for j in cell:
                     if i != j:
                         adjacency_matrix[i][j] = 1.
-        # print(adjacency_matrix)
         return adjacency_matrix 
 
     def _order_adjacency_subsubstep(self, center, ordered_adjacency):
@@ -169,13 +168,14 @@ class GraphManual(Graph):
     """Graph created by ourselves.
     """
     def __init__(self, args):
-        self.num_ver_per_line = 4
+        self.num_ver_per_line = 15
         self.num_vertices =  self.num_ver_per_line**2
         self.adjacency_matrix = self._get_adjacency_matrix()
-        self._coo = self._get_coo()
-        self.x1 = self._coo[:, 0]
-        self.x2 = self._coo[:, 1]
-        self._boundary_flags = self._get_boundary_flags()  
+        self.coo = self._get_coo()
+        self.x1 = self.coo[:, 0]
+        self.x2 = self.coo[:, 1]
+        self._boundary_flags = self._get_boundary_flags() 
+        self.name = 'manual' 
         super(GraphManual, self).__init__(args)
 
     def _get_weighted_area(self):
@@ -232,9 +232,9 @@ class GraphManual(Graph):
 if __name__ == '__main__':
     args = arguments.args
 
-    # graph_mshr = GraphMSHR(args)
-    graph_manual = GraphManual(args)
+    graph_mshr = GraphMSHR(args)
+    # graph_manual = GraphManual(args)
 
     file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
-    # mesh.rename('u', 'u')
-    # file << graph_mshr.mesh
+    graph_mshr.mesh.rename('u', 'u')
+    file << graph_mshr.mesh
