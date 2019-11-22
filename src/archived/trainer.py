@@ -149,10 +149,8 @@ if __name__ == "__main__":
     torch.tensor(test_X).float(), \
     torch.tensor(test_Y).float() 
 
-
     train_X = impose_bc(train_X)
     test_X = impose_bc(test_X)
-
 
     train_data = TensorDataset(train_X, train_Y)
     test_data = TensorDataset(test_X, test_Y)

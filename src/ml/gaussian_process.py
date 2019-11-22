@@ -19,11 +19,14 @@ def generate_samples(graph, num_samps):
             kernel_matrix[i][j] = RBF_kernel(coo[i], coo[j])
 
     samples = np.random.multivariate_normal(mean_vector, kernel_matrix, num_samps)
+    samples = np.random.uniform(-1, 1, (num_samps, M))
+    samples = np.random.multinomial(1, [1/M]*M, size=num_samps)
+
     return samples
 
 def RBF_kernel(x1, x2):
-    sigma = 1
-    l = 0.01
+    sigma = 10
+    l = 0.001
     k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
     return k
  
@@ -48,6 +51,14 @@ if __name__ == '__main__':
     # graph = GraphMSHR(args)
     graph = GraphManual(args)
     print("generated")
-    data = generate_samples(graph=graph, num_samps=300000)
+    data = generate_samples(graph=graph, num_samps=30000)
+
+
     np.save(args.root_path + '/' + args.numpy_path + '/' + graph.name +
-            '-GP-300000-' + str(graph.num_vertices) + '.npy', data)
+            '-Multi-30000-' + str(graph.num_vertices) + '.npy', data)
+
+    # data = np.identity(graph.num_vertices)
+    # np.save(args.root_path + '/' + args.numpy_path + '/' + graph.name +
+    #         '-ID-' + str(graph.num_vertices) + '.npy', data)
+    # np.save(args.root_path + '/' + args.numpy_path + '/' + graph.name +
+    #         '-GP-3000-' + str(graph.num_vertices) + '.npy', data)

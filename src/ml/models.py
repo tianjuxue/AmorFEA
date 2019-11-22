@@ -12,8 +12,12 @@ import torch
 #         self.args = args
 #         self.encoder = nn.Sequential(
 #             nn.Linear(args.input_size, args.input_size),
+#             nn.SELU(True),
+#             nn.Linear(args.input_size, args.input_size),
 #             nn.SELU(True))
 #         self.decoder = nn.Sequential(
+#             nn.Linear(args.input_size, args.input_size),
+#             nn.SELU(True),
 #             nn.Linear(args.input_size, args.input_size),
 #             nn.SELU(True))
 

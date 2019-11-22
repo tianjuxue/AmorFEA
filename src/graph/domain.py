@@ -168,7 +168,7 @@ class GraphManual(Graph):
     """Graph created by ourselves.
     """
     def __init__(self, args):
-        self.num_ver_per_line = 15
+        self.num_ver_per_line = 16
         self.num_vertices =  self.num_ver_per_line**2
         self.adjacency_matrix = self._get_adjacency_matrix()
         self.coo = self._get_coo()
