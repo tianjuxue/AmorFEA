@@ -34,11 +34,8 @@ if __name__ == "__main__":
     interior_operator = graph.reset_matrix_interior
     A = -np.matmul(gradient_x2_operator, gradient_x2_operator) \
         -np.matmul(gradient_x1_operator, gradient_x1_operator)
-
-    A *= (1./32.)**2
-
+    A /= M
     A = np.matmul(interior_operator, A) + boundary_operator
-   
     A_T = np.transpose(A)
     a = A[col,:]
     A_inv = np.linalg.inv(A)

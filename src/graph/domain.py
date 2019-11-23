@@ -20,7 +20,7 @@ class Graph(object):
         # print(self.coo)
         # print(self.ordered_adjacency_list)
         # print(self.triangle_area_sum)
-        # print(self.gradient_x1)
+        # print(np.max(self.gradient_x1))
         # print(self.reset_matrix_boundary)
         # print(self.reset_matrix_interior)
 
@@ -168,7 +168,7 @@ class GraphManual(Graph):
     """Graph created by ourselves.
     """
     def __init__(self, args):
-        self.num_ver_per_line = 16
+        self.num_ver_per_line = 32
         self.num_vertices =  self.num_ver_per_line**2
         self.adjacency_matrix = self._get_adjacency_matrix()
         self.coo = self._get_coo()
