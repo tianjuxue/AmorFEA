@@ -102,14 +102,20 @@ class Poisson(object):
         du = fa.TrialFunction(self.V)
         v  = fa.TestFunction(self.V)
 
-        C1 = 1
-        C2 = 1.1
-        u0 = 0
+        e = 1.6*1e-19
+        eps_0 = 8.85*1e-12
+        n_e = 1e18
+        C = e*n_e/eps_0
+        k_B = 8.6*1e-5
+
+        u0 = 1e3
+        Te = 1e5
+ 
         Te = fa.Expression(("sin(2*pi/L*x[0]) + 1"), L=self.args.n_cells*self.args.L0, degree=3)
         # Te = 1
-        # F  = fa.inner(fa.grad(u), fa.grad(v))*fa.dx + (C1 - C2*fa.exp((u - u0)/Te))*v*fa.dx
+        F  = fa.inner(fa.grad(u), fa.grad(v))*fa.dx - C*fa.exp(-(u - u0)/(k_B*Te))*v*fa.dx
         # F  = fa.inner(fa.grad(u), fa.grad(v))*fa.dx - self.source*v*fa.dx
-        F  = fa.inner(Te*fa.grad(u), fa.grad(v))*fa.dx - v*fa.dx
+        # F  = fa.inner(Te*fa.grad(u), fa.grad(v))*fa.dx - v*fa.dx
         J  = fa.derivative(F, u, du)  
 
         bcs = []

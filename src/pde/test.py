@@ -7,7 +7,7 @@ from .poisson import Poisson
 if __name__ == '__main__':
     args = arguments.args
     pde = Poisson(args)
-    u = pde.solve_problem_weak_form(boundary_fn=fa.Constant(0))
+    u = pde.solve_problem_variational_form(boundary_fn=fa.Constant(0.5*1e3))
     file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
     u.rename('u', 'u')
     file << u

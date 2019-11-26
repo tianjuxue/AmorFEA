@@ -54,8 +54,8 @@ def plot_training(L_inf, L_fro):
     fig = plt.figure()
     ax = fig.gca()
     epoch = np.arange(0, len(L_inf), 1)
-    ax.plot(epoch, L_fro)
-    ax.set_yscale('log')
+    ax.plot(epoch, L_inf)
+    # ax.set_yscale('log')
     plt.show()
 
 if __name__ == "__main__":
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     model =  torch.load(model_path)
     source = get_graph_attributes(f1, graph)
     solution = model_prediction(source, graph, model)
-    # plot_graph_attributes(solution, graph)
+    plot_graph_attributes(solution, graph)
 
 
     np_data = np.load(args.root_path + '/' + args.numpy_path + '/error_11.npy')
