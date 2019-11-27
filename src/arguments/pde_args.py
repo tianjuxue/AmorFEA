@@ -14,3 +14,5 @@ def add_args(parser):
         help='relative tolerance')
     parser.add_argument('--abs_tol', default=1e-5, type=float,
         help='absolute tolerance')
+    parser.add_argument('--L0', type=float, default=1)
+    parser.add_argument('--n_cells', type=int, default=31) 

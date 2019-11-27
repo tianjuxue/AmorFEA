@@ -1,7 +1,7 @@
 #TODO(Tianju)
 # Change the fully connected network to a more advanced architecture like CNN
 
-from torch import nn, optim
+from torch import nn
 from torch.nn import functional as F
 import torch
 
@@ -26,9 +26,9 @@ import torch
 #         x = self.decoder(x)
 #         return x
 
-class NeuralNetSolver(nn.Module):
+class LinearRegressor(nn.Module):
     def __init__(self, args):
-        super(NeuralNetSolver, self).__init__()
+        super(LinearRegressor, self).__init__()
         self.args = args
         self.fc = nn.Linear(args.input_size, args.input_size, bias=False)
 

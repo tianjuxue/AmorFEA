@@ -27,8 +27,6 @@ def irregular_channel():
 if __name__ == '__main__':
     args = arguments.args
 
-    # graph_mshr = GraphMSHR(args)
-    
     mesh = irregular_channel()
     print(mesh.num_vertices())
 

@@ -2,6 +2,8 @@
 Input is fixed to represent a certain source term
 '''
 
+# TODO(Tianju): Rewrite this to fit into the TrainerLinear class
+
 import torch
 from torch import nn, optim
 from torch.nn import functional as F

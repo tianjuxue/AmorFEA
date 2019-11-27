@@ -2,6 +2,7 @@ import numpy as np
 import fenics as fa
 import mshr
 from .. import arguments
+from .custom_mesh import irregular_channel, unit_disk
 
 
 class Graph(object):
@@ -17,7 +18,8 @@ class Graph(object):
         self.gradient_x2 = self._assemble_gradient(self.x1, 1)
         self.reset_matrix_boundary = np.diag(self._boundary_flags)
         self.reset_matrix_interior = np.identity(self.num_vertices) - self.reset_matrix_boundary
-        self.neumann_operator, self.weight_length = self._assemble_neumann_bc()
+        if args.assemble_flag: 
+            self.neumann_operator, self.weight_length = self._assemble_gradient_normal(self._neumann_boundary_flags)
         # print(self.coo)
         # print(self.ordered_adjacency_list)
         # print(self.triangle_area_sum)
@@ -105,29 +107,33 @@ class Graph(object):
     def _get_weight_length(self, coo_0, coo_1):
         return np.linalg.norm(coo_1 - coo_0)
 
-    def _assemble_neumann_bc(self):
-        tmp_operator_x1 = np.zeros((self.num_vertices, self.num_vertices))
-        tmp_operator_x2 = np.zeros((self.num_vertices, self.num_vertices))
+    def _assemble_gradient_normal(self, boundary_flags):
+        # Assemble \nabla u \cdot n
+        tmp_operator_x1 = np.zeros(self.num_vertices)
+        tmp_operator_x2 = np.zeros(self.num_vertices)
         weight_length = np.zeros(self.num_vertices)
-
         for i in range(self.num_vertices):
-            if self._neumann_boundary_flags > 0:
+            if boundary_flags > 0:
                 first_index = self.ordered_adjacency_list[i][0]
                 second_index = self.ordered_adjacency_list[i][1]
-                if self._neumann_boundary_flags[first_index] > 0:
+                if boundary_flags[first_index] > 0:
                     coo_0 = self.coo[i]
                     coo_1 = self.coo[first_index]
                     coo_2 = self.coo[second_index]
+                    wl = self._get_weight_length(coo_0, coo_1)
+                    weight_length[i] += 0.5*wl
+                    weight_length[first_index] += 0.5*wl
                     normal_vector = self._compute_normal_vector(coo_0, coo_1, coo_2)
-                    tmp_operator_x1[i][i] += 0.5*normal_vector[0]
-                    tmp_operator_x1[i][first_index] += 0.5*normal_vector[0]
-                    tmp_operator_x2[i][i] += 0.5*normal_vector[1]
-                    tmp_operator_x2[i][first_index] += 0.5*normal_vector[1]
-                    weight_length[i] += 0.5*self._get_weight_length(coo_0, coo_1)
-                    weight_length[first_index] += 0.5*self._get_weight_length(coo_0, coo_1)
-
-        neumann_operator = np.matmul(tmp_operator_x1, self.gradient_x1) 
+                    tmp_operator_x1[first_index] = 0.5*wl*normal_vector[0]
+                    tmp_operator_x1[i] = 0.5*wl*normal_vector[0]
+                    tmp_operator_x2[first_index] = 0.5*wl*normal_vector[1]
+                    tmp_operator_x2[i] = 0.5*wl*normal_vector[1]
+        tmp_operator_x1 = np.diag(tmp_operator_x1)
+        tmp_operator_x2 = np.diag(tmp_operator_x2)
+        weight_length = np.diag(weight_length)
+        neumann_operator = np.matmul(tmp_operator_x1, self.gradient_x1) \
                           +np.matmul(tmp_operator_x2, self.gradient_x2)
+        neumann_operator = np.matmul(1./weight_length, neumann_operator)
 
         return neumann_operator, weight_length
 
@@ -135,10 +141,7 @@ class Graph(object):
 class GraphMSHR(Graph):
     """Graph obtained from mshr.
     """
-    def __init__(self, args, mesh_parameters=None):
-        # replaced by something like namedtuple
-        # self.mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3) 
-        self.mesh = mshr.generate_mesh(mshr.Circle(fa.Point(0, 0), 1), 10)
+    def __init__(self, args):
         self.coo = self.mesh.coordinates()
         self._cells = self._make_oriented(self.mesh.cells())
         self.num_vertices = self.mesh.num_vertices()
@@ -147,7 +150,6 @@ class GraphMSHR(Graph):
         self.x2 = self.coo[:, 1]
         self._boundary_flags = self._get_boundary_flags()
         self._neumann_boundary_flags, self._dirichlet_boundary_flags = self._get_detailed_boundary_flags()
-        self.name = 'mshr' 
         super(GraphMSHR, self).__init__(args)
 
     def _get_weight_area(self):
@@ -173,23 +175,8 @@ class GraphMSHR(Graph):
                     boundary_flags[i] = 1
         return boundary_flags
 
-    def._get_detailed_boundary_flags(self):
-        # Only applies to irregular channel domain
-        # TODO(Tianju): Needs to be more general
-        _neumann_boundary_flags = np.zeros(self.num_vertices)
-        _dirichlet_boundary_flags = np.zeros(self.num_vertices)
-        for i in range(self.num_vertices):
-            if self._boundary_flags[i] == 1:
-                if self._x1[i] < 1e-10 or self._x1[i] > 2 - 1e-10:
-                    _dirichlet_boundary_flags[i] = 1
-                if np.abs(self.x2[i] - 0.5*self.x1[i] - 1) < 1e-10 or
-                   np.abs(self.x2[i] + 0.5*self.x1[i]) < 1e-10:
-                    _neumann_boundary_flags[i] = 1
-                if np.abs(np.linalg.norm(np.coo[i] - np.array([0.5, 0.5])) - 0.5) < 1e-10 or
-                   np.abs(np.linalg.norm(np.coo[i] - np.array([1.5, 1.0])) - 0.5) > 1e-10 or
-                   np.abs(np.linalg.norm(np.coo[i] - np.array([1.5, 0.0])) - 0.5) < 1e-10:
-                   _neumann_boundary_flags[i] = 2
-        return _neumann_boundary_flags, _dirichlet_boundary_flags
+    def _get_detailed_boundary_flags(self):
+        raise NotImplementedError()
 
     def _adjacency_matrix_from_cells(self):
         adjacency_matrix = np.zeros((self.num_vertices, self.num_vertices))
@@ -224,6 +211,31 @@ class GraphMSHR(Graph):
             if np.linalg.norm(self._order_cell(cell) - self._order_cell(cell_t)) < 1e-8:
                 return True
         return False
+
+
+class GraphMSHRTrapezoid(GraphMSHR):
+    """Graph obtained from mshr.
+    """
+    def __init__(self, args):
+        self.mesh = irregular_channel()
+        self.name = 'mshr_trapezoid' 
+        super(GraphMSHRTrapezoid, self).__init__(args)
+
+    def _get_detailed_boundary_flags(self):
+        _neumann_boundary_flags = np.zeros(self.num_vertices)
+        _dirichlet_boundary_flags = np.zeros(self.num_vertices)
+        for i in range(self.num_vertices):
+            if self._boundary_flags[i] == 1:
+                if self._x1[i] < 1e-10 or self._x1[i] > 2 - 1e-10:
+                    _dirichlet_boundary_flags[i] = 1
+                if np.abs(self.x2[i] - 0.5*self.x1[i] - 1) < 1e-10 or \
+                   np.abs(self.x2[i] + 0.5*self.x1[i]) < 1e-10:
+                    _neumann_boundary_flags[i] = 1
+                if np.abs(np.linalg.norm(np.coo[i] - np.array([0.5, 0.5])) - 0.5) < 1e-10 or \
+                   np.abs(np.linalg.norm(np.coo[i] - np.array([1.5, 1.0])) - 0.5) > 1e-10 or \
+                   np.abs(np.linalg.norm(np.coo[i] - np.array([1.5, 0.0])) - 0.5) < 1e-10:
+                   _neumann_boundary_flags[i] = 2
+        return _neumann_boundary_flags, _dirichlet_boundary_flags
 
 
 class GraphManual(Graph):
@@ -294,12 +306,8 @@ class GraphManual(Graph):
 
 if __name__ == '__main__':
     args = arguments.args
-
     graph_mshr = GraphMSHR(args)
     # graph_manual = GraphManual(args)
-
     # file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
     # graph_mshr.mesh.rename('u', 'u')
     # file << graph_mshr.mesh
-
- 
