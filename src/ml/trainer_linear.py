@@ -20,15 +20,6 @@ class TrainerLinear(Trainer):
         self.graph = GraphManual(self.args)
         self.args.input_size = self.graph.num_vertices
 
-    def batch_mm(self, matrix, vector_batch):
-        batch_size = vector_batch.shape[0]
-        # Stack the vector batch into columns. (b, n, 1) -> (n, b)
-        vectors = vector_batch.transpose(0, 1).reshape(-1, batch_size)
-
-        # A matrix-matrix product is a batched matrix-vector product of the columns.
-        # And then reverse the reshaping. (m, b) -> (b, m, 1)
-        return matrix.mm(vectors).transpose(1, 0).reshape(batch_size, -1, 1)
-
     def loss_function(self, x_control, x_state):
         # loss function is defined so that PDE is satisfied
 
@@ -55,10 +46,9 @@ class TrainerLinear(Trainer):
         gradient_x2_operator = torch.tensor(self.graph.gradient_x2).float()
         boundary_operator = torch.tensor(self.graph.reset_matrix_boundary).float()
         interior_operator = torch.tensor(self.graph.reset_matrix_interior).float()
-        operators = [gradient_x1_operator, gradient_x2_operator, boundary_operator, interior_operator]
 
         tmp = -torch.matmul(gradient_x1_operator, gradient_x1_operator) \
-               -torch.matmul(gradient_x2_operator, gradient_x2_operator)
+              -torch.matmul(gradient_x2_operator, gradient_x2_operator)
         tmp /= self.graph.num_vertices
         A = torch.matmul(interior_operator, tmp) + boundary_operator
 
@@ -90,10 +80,10 @@ class TrainerLinear(Trainer):
         self.model = LinearRegressor(self.args)
         self.model.fc.weight.data = torch.zeros((self.args.input_size, self.args.input_size))
 
-        # optimizer = optim.Adam(self.model.parameters(), lr=1e-2)
-        # optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)
-        # optimal tuning lr=1e-1, momentum=0.6 for multinomial data
-        # optimal tuning lr=1e-4, momentum=0.85 for uniform data
+        # self.optimizer = optim.Adam(self.model.parameters(), lr=1e-2)
+        # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)
+        # self.optimal tuning lr=1e-1, momentum=0.6 for multinomial data
+        # self.optimal tuning lr=1e-4, momentum=0.85 for uniform data
         self.optimizer = optim.SGD(self.model.parameters(), lr=1e-4, momentum=0.85)
 
         milestone = [ 2**(-i) for i in range(-1, 11) ]

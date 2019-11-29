@@ -63,8 +63,13 @@ class PoissonTrapezoid(Poisson):
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
 
-        self.source = fa.Constant(0.1)
-        self.medium = fa.Expression(("3*sin(pi/L*x[0]) + 1"), L=self.args.n_cells*self.args.L0, degree=3)
+        self.source = fa.Constant(1)
+        self.medium = fa.Expression("sin(pi*x[0]) + 2", degree=3)
+
+        # Change your boundary conditions here
+        boundary_bc_left = fa.DirichletBC(self.V, fa.Constant(2.), self.left)
+        boundary_bc_right = fa.DirichletBC(self.V, fa.Constant(1.), self.right)
+        self.bcs = [boundary_bc_left, boundary_bc_right]
 
     def solve_problem_weak_form(self):
         u = fa.Function(self.V)      
@@ -74,21 +79,42 @@ class PoissonTrapezoid(Poisson):
         J  = fa.derivative(F, u, du)  
 
         # Change your boundary conditions here
-        boundary_bc_left = fa.DirichletBC(self.V, fa.Constant(1.), self.left)
-        boundary_bc_right = fa.DirichletBC(self.V, fa.Constant(0), self.right)
+        boundary_bc_left = fa.DirichletBC(self.V, fa.Constant(2.), self.left)
+        boundary_bc_right = fa.DirichletBC(self.V, fa.Constant(1.), self.right)
         bcs = [boundary_bc_left, boundary_bc_right]
 
         # The problem in this case is indeed linear, but using a nonlinear solver doesn't hurt
-        problem = fa.NonlinearVariationalProblem(F, u, bcs, J)
+        problem = fa.NonlinearVariationalProblem(F, u, self.bcs, J)
         solver  = fa.NonlinearVariationalSolver(problem)
         solver.solve()
+        return u
+
+    # Constitutive relationships
+    def _energy_density(self, u):
+        # variational energy density of u
+        energy = 0.5*self.medium*fa.dot(fa.grad(u), fa.grad(u)) - u*self.source
+        return energy
+
+    def energy(self, u):
+        return fa.assemble(self._energy_density(u) * fa.dx)
+
+    def solve_problem_variational_form(self):
+        u = fa.Function(self.V)
+        du = fa.TrialFunction(self.V)
+        v = fa.TestFunction(self.V)
+        E = self._energy_density(u)*fa.dx
+        dE = fa.derivative(E, u, v)
+        jacE = fa.derivative(dE, u, du) 
+        fa.solve(dE == 0, u, self.bcs, J=jacE)
+
+        print(self.energy(u))
 
         return u
 
 if __name__ == '__main__':
     args = arguments.args
     pde = PoissonTrapezoid(args)
-    u = pde.solve_problem_weak_form()
+    u = pde.solve_problem_variational_form()
     file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
     u.rename('u', 'u')
     file << u

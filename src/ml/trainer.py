@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 import numpy as np
 from .. import arguments
+from ..graph.visualization import *
 
 
 class Trainer(object):
@@ -13,6 +14,15 @@ class Trainer(object):
     def __init__(self, args):
         self.args = args
         torch.manual_seed(self.args.seed)
+
+    def batch_mm(self, matrix, vector_batch):
+        batch_size = vector_batch.shape[0]
+        # Stack the vector batch into columns. (b, n, 1) -> (n, b)
+        vectors = vector_batch.transpose(0, 1).reshape(-1, batch_size)
+
+        # A matrix-matrix product is a batched matrix-vector product of the columns.
+        # And then reverse the reshaping. (m, b) -> (b, m, 1)
+        return matrix.mm(vectors).transpose(1, 0).reshape(batch_size, -1, 1)
 
     def shuffle_data(self):
         n_samps = len(self.data_X)
@@ -74,4 +84,9 @@ class Trainer(object):
                 test_loss += self.loss_function(data, recon_batch).item()
         test_loss /= len(self.test_loader.dataset)
         print('====> Epoch: {} Test set loss: {:.6f}'.format(epoch, test_loss))
+
+        # if test_loss < -3.5:
+        #     scalar_field_3D(recon_batch[0].data.numpy(), self.graph)
+        #     plt.show()
+
         return test_loss

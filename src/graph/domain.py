@@ -16,10 +16,9 @@ class Graph(object):
         self.weight_area = self._get_weight_area()
         self.gradient_x1 = self._assemble_gradient(self.x2, 0)
         self.gradient_x2 = self._assemble_gradient(self.x1, 1)
-        self.reset_matrix_boundary = np.diag(self._boundary_flags)
+        self.reset_matrix_boundary = np.diag(self.boundary_flags)
         self.reset_matrix_interior = np.identity(self.num_vertices) - self.reset_matrix_boundary
-        if args.assemble_flag: 
-            self.neumann_operator, self.weight_length = self._assemble_gradient_normal(self._neumann_boundary_flags)
+        print("Graph built!")
         # print(self.coo)
         # print(self.ordered_adjacency_list)
         # print(self.triangle_area_sum)
@@ -33,7 +32,7 @@ class Graph(object):
         gradient_operator = np.zeros((self.num_vertices, self.num_vertices))
         for i in range(self.num_vertices):
             ordered_adjacency = self.ordered_adjacency_list[i]
-            range_j = len(ordered_adjacency) - 1 if self._boundary_flags[i] == 1 else len(ordered_adjacency)
+            range_j = len(ordered_adjacency) - 1 if self.boundary_flags[i] == 1 else len(ordered_adjacency)
             for j in range(range_j):
                 idx_crt = ordered_adjacency[j]
                 idx_next = ordered_adjacency[(j + 1) % len(ordered_adjacency)]
@@ -47,7 +46,7 @@ class Graph(object):
         area = np.zeros(self.num_vertices)
         for i in range(self.num_vertices):
             ordered_adjacency = self.ordered_adjacency_list[i]
-            range_j = len(ordered_adjacency) - 1 if self._boundary_flags[i] == 1 else len(ordered_adjacency)
+            range_j = len(ordered_adjacency) - 1 if self.boundary_flags[i] == 1 else len(ordered_adjacency)
             for j in range(range_j):
                 area[i] = area[i] + self._signed_tri_area(self.coo[i], 
                                                    self.coo[ordered_adjacency[j]], 
@@ -107,13 +106,13 @@ class Graph(object):
     def _get_weight_length(self, coo_0, coo_1):
         return np.linalg.norm(coo_1 - coo_0)
 
-    def _assemble_gradient_normal(self, boundary_flags):
+    def assemble_normal(self, boundary_flags):
         # Assemble \nabla u \cdot n
-        tmp_operator_x1 = np.zeros(self.num_vertices)
-        tmp_operator_x2 = np.zeros(self.num_vertices)
+        normal_x1 = np.zeros(self.num_vertices)
+        normal_x2 = np.zeros(self.num_vertices)
         weight_length = np.zeros(self.num_vertices)
         for i in range(self.num_vertices):
-            if boundary_flags > 0:
+            if boundary_flags[i] > 0:
                 first_index = self.ordered_adjacency_list[i][0]
                 second_index = self.ordered_adjacency_list[i][1]
                 if boundary_flags[first_index] > 0:
@@ -124,18 +123,15 @@ class Graph(object):
                     weight_length[i] += 0.5*wl
                     weight_length[first_index] += 0.5*wl
                     normal_vector = self._compute_normal_vector(coo_0, coo_1, coo_2)
-                    tmp_operator_x1[first_index] = 0.5*wl*normal_vector[0]
-                    tmp_operator_x1[i] = 0.5*wl*normal_vector[0]
-                    tmp_operator_x2[first_index] = 0.5*wl*normal_vector[1]
-                    tmp_operator_x2[i] = 0.5*wl*normal_vector[1]
-        tmp_operator_x1 = np.diag(tmp_operator_x1)
-        tmp_operator_x2 = np.diag(tmp_operator_x2)
-        weight_length = np.diag(weight_length)
-        neumann_operator = np.matmul(tmp_operator_x1, self.gradient_x1) \
-                          +np.matmul(tmp_operator_x2, self.gradient_x2)
-        neumann_operator = np.matmul(1./weight_length, neumann_operator)
+                    normal_x1[first_index] = 0.5*wl*normal_vector[0]
+                    normal_x1[i] = 0.5*wl*normal_vector[0]
+                    normal_x2[first_index] = 0.5*wl*normal_vector[1]
+                    normal_x2[i] = 0.5*wl*normal_vector[1]
 
-        return neumann_operator, weight_length
+        normal_x1 = np.divide(normal_x1, weight_length, where=weight_length!=0)
+        normal_x2 = np.divide(normal_x2, weight_length, where=weight_length!=0)
+
+        return normal_x1, normal_x2, weight_length
 
 
 class GraphMSHR(Graph):
@@ -148,8 +144,8 @@ class GraphMSHR(Graph):
         self.adjacency_matrix = self._adjacency_matrix_from_cells()
         self.x1 = self.coo[:, 0]
         self.x2 = self.coo[:, 1]
-        self._boundary_flags = self._get_boundary_flags()
-        self._neumann_boundary_flags, self._dirichlet_boundary_flags = self._get_detailed_boundary_flags()
+        self.boundary_flags = self._get_boundary_flags()
+        self.boundary_flags_list = self._get_detailed_boundary_flags()
         super(GraphMSHR, self).__init__(args)
 
     def _get_weight_area(self):
@@ -190,7 +186,7 @@ class GraphMSHR(Graph):
     def _order_adjacency_subsubstep(self, center, ordered_adjacency):
         # PDEs are made by god, yet boundary conditions are made by demon
         # Special care given to boundary nodes
-        if self._boundary_flags[center] == 1:
+        if self.boundary_flags[center] == 1:
             counter = 0
             for i, index in enumerate(ordered_adjacency):
                 cell_t = np.array([center, 
@@ -222,20 +218,18 @@ class GraphMSHRTrapezoid(GraphMSHR):
         super(GraphMSHRTrapezoid, self).__init__(args)
 
     def _get_detailed_boundary_flags(self):
-        _neumann_boundary_flags = np.zeros(self.num_vertices)
-        _dirichlet_boundary_flags = np.zeros(self.num_vertices)
+        boundary_flags_list = [np.zeros(self.num_vertices) for i in range(3)] 
         for i in range(self.num_vertices):
-            if self._boundary_flags[i] == 1:
-                if self._x1[i] < 1e-10 or self._x1[i] > 2 - 1e-10:
-                    _dirichlet_boundary_flags[i] = 1
+            if self.boundary_flags[i] == 1:
+                if self.x1[i] < 1e-10:
+                    boundary_flags_list[0][i] = 1
+                if self.x1[i] > 2 - 1e-10:
+                    boundary_flags_list[1][i] = 1
                 if np.abs(self.x2[i] - 0.5*self.x1[i] - 1) < 1e-10 or \
-                   np.abs(self.x2[i] + 0.5*self.x1[i]) < 1e-10:
-                    _neumann_boundary_flags[i] = 1
-                if np.abs(np.linalg.norm(np.coo[i] - np.array([0.5, 0.5])) - 0.5) < 1e-10 or \
-                   np.abs(np.linalg.norm(np.coo[i] - np.array([1.5, 1.0])) - 0.5) > 1e-10 or \
-                   np.abs(np.linalg.norm(np.coo[i] - np.array([1.5, 0.0])) - 0.5) < 1e-10:
-                   _neumann_boundary_flags[i] = 2
-        return _neumann_boundary_flags, _dirichlet_boundary_flags
+                   np.abs(self.x2[i] + 0.5*self.x1[i]) < 1e-10 or \
+                   self.x1[i] > 1e-10 and self.x1[i] < 2 - 1e-10:
+                   boundary_flags_list[2][i] = 1
+        return boundary_flags_list
 
 
 class GraphManual(Graph):
@@ -248,7 +242,7 @@ class GraphManual(Graph):
         self.coo = self._get_coo()
         self.x1 = self.coo[:, 0]
         self.x2 = self.coo[:, 1]
-        self._boundary_flags = self._get_boundary_flags() 
+        self.boundary_flags = self._get_boundary_flags() 
         self.name = 'manual' 
         super(GraphManual, self).__init__(args)
 
@@ -290,7 +284,7 @@ class GraphManual(Graph):
     def _order_adjacency_subsubstep(self, center, ordered_adjacency):
         # PDEs are made by god, yet boundary conditions are made by demon
         # Special care given to boundary nodes
-        if self._boundary_flags[center] == 1:
+        if self.boundary_flags[center] == 1:
             if center < self.num_ver_per_line and center != 0:
                 counter = -1
             if center >= self.num_vertices - self.num_ver_per_line and center != self.num_vertices - 1:

@@ -6,25 +6,26 @@ from torch.nn import functional as F
 import torch
 
 
-# class NeuralNetSolver(nn.Module):
-#     def __init__(self, args):
-#         super(NeuralNetSolver, self).__init__()
-#         self.args = args
-#         self.encoder = nn.Sequential(
-#             nn.Linear(args.input_size, args.input_size),
-#             nn.SELU(True),
-#             nn.Linear(args.input_size, args.input_size),
-#             nn.SELU(True))
-#         self.decoder = nn.Sequential(
-#             nn.Linear(args.input_size, args.input_size),
-#             nn.SELU(True),
-#             nn.Linear(args.input_size, args.input_size),
-#             nn.SELU(True))
+class MLP(nn.Module):
+    def __init__(self, args, graph_info):
+        super(MLP, self).__init__()
+        self.args = args
+        self.bc_value, self.interior_flag = graph_info
+        self.encoder = nn.Sequential(
+            nn.Linear(args.input_size, args.input_size),
+            nn.SELU(True),
+            nn.Linear(args.input_size, args.input_size),
+            nn.SELU(True))
+        self.decoder = nn.Sequential(
+            nn.Linear(args.input_size, args.input_size),
+            nn.SELU(True),
+            nn.Linear(args.input_size, args.input_size))
 
-#     def forward(self, x):
-#         x = self.encoder(x)
-#         x = self.decoder(x)
-#         return x
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
+        return x
 
 class LinearRegressor(nn.Module):
     def __init__(self, args):
@@ -36,19 +37,18 @@ class LinearRegressor(nn.Module):
         x = self.fc(x)
         return x
 
-# class ConvSolver(nn.Module):
-#     def __init__(self, args):
-#         super(ConvSolver, self).__init__()
+# class GraphNN(nn.Module):
+#     def __init__(self, args, operators):
+#         super(GraphNN, self).__init__()
 #         self.args = args
-#         # O = (I - K + 2P)/S + 1
-#         self.encoder = nn.Sequential(
-#             nn.Conv2d(1, 16, 3, stride=1, padding=1),   
-#             nn.ReLU(True),
-#             nn.MaxPool2d(3, stride=1, padding=1)   
-#         )
+#         self.operators = operators
+#         self.fc = nn.Linear(args.input_size, args.input_size, bias=False)
 
 #     def forward(self, x):
-#         z, mu, logvar = self.encode(x)
-#         x = self.decode(z)
-#         y = self.predict(z)
-#         return x, y, mu, logvar
+#         x = self.fc(x)
+
+
+#         torch.addcmul(bc_value, value=1, input_x, interior_flag, out=None)
+
+
+#         return x

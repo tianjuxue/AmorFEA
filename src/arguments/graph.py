@@ -1,4 +1,4 @@
-"""Args defining output and networks"""
+"""Args defining graph"""
 
 
 def add_args(parser):
