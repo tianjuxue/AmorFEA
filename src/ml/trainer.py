@@ -15,15 +15,6 @@ class Trainer(object):
         self.args = args
         torch.manual_seed(self.args.seed)
 
-    def batch_mm(self, matrix, vector_batch):
-        batch_size = vector_batch.shape[0]
-        # Stack the vector batch into columns. (b, n, 1) -> (n, b)
-        vectors = vector_batch.transpose(0, 1).reshape(-1, batch_size)
-
-        # A matrix-matrix product is a batched matrix-vector product of the columns.
-        # And then reverse the reshaping. (m, b) -> (b, m, 1)
-        return matrix.mm(vectors).transpose(1, 0).reshape(batch_size, -1, 1)
-
     def shuffle_data(self):
         n_samps = len(self.data_X)
         n_train = int(self.args.train_portion*n_samps)
@@ -33,11 +24,11 @@ class Trainer(object):
         train_X = self.data_X[inds_train]
         test_X = self.data_X[inds_test]
 
-        train_X = torch.tensor(train_X).float().view(train_X.shape[0], self.args.input_size)
-        test_X = torch.tensor(test_X).float().view(test_X.shape[0], self.args.input_size)
+        self.train_X = torch.tensor(train_X).float().view(train_X.shape[0], self.args.input_size)
+        self.test_X = torch.tensor(test_X).float().view(test_X.shape[0], self.args.input_size)
 
-        train_data = TensorDataset(train_X)
-        test_data = TensorDataset(test_X)
+        train_data = TensorDataset(self.train_X)
+        test_data = TensorDataset(self.test_X)
         train_loader = DataLoader(train_data, batch_size=self.args.batch_size, shuffle=True)
         test_loader = DataLoader(test_data, batch_size=self.args.batch_size, shuffle=True)
 
@@ -84,9 +75,24 @@ class Trainer(object):
                 test_loss += self.loss_function(data, recon_batch).item()
         test_loss /= len(self.test_loader.dataset)
         print('====> Epoch: {} Test set loss: {:.6f}'.format(epoch, test_loss))
-
-        # if test_loss < -3.5:
-        #     scalar_field_3D(recon_batch[0].data.numpy(), self.graph)
-        #     plt.show()
-
         return test_loss
+
+
+# # '''Helpers'''
+def batch_mat_vec(sparse_matrix, vector_batch):
+    # sparse_matrix: (k, n)
+    # vector_batch: (b, n)
+    # want to do batch multiplication and return (b, k)
+
+    # (b, n) -> (n, b)
+    matrices = vector_batch.transpose(0, 1)
+
+    # (k, b) -> (b, k)
+    return sparse_matrix.mm(matrices).transpose(1, 0)
+
+def batch_mat_mat(sparse_matrix, matrix_batch):
+    batch_size = matrix_batch.shape[0]
+    x = torch.stack([torch.mm(sparse_matrix, matrix_batch[i].float()) for i in range(batch_size)])
+    # x = torch.matmul(sparse_matrix.to_dense(), matrix_batch)
+    # x = torch.matmul(sparse_matrix, matrix_batch)
+    return x

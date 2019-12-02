@@ -213,7 +213,8 @@ class GraphMSHRTrapezoid(GraphMSHR):
     """Graph obtained from mshr.
     """
     def __init__(self, args):
-        self.mesh = irregular_channel()
+        self.mesh = fa.Mesh(args.root_path + '/' + 
+                            args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')
         self.name = 'mshr_trapezoid' 
         super(GraphMSHRTrapezoid, self).__init__(args)
 

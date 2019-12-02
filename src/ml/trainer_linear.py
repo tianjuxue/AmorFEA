@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader, TensorDataset
 import numpy as np
 import os
 import collections
-from .trainer import Trainer
+from .trainer import Trainer, batch_mat_vec
 from .models import LinearRegressor
 from ..graph.domain import GraphManual
 from .. import arguments
@@ -27,16 +27,12 @@ class TrainerLinear(Trainer):
         # x_state should be torch tensor with shape (batch, input_size)
         assert(x_control.shape == x_state.shape and len(x_control.shape) == 2)
      
-        # to (batch, input_size, 1) for batch matrix-vector multiplication
-        x_state = x_state.unsqueeze(2)
-
         # Sparse representation is ~10 times faster then dense representation in this case
         # dense representation would be lhs = torch.matmul(A, x_state)
-        lhs = self.batch_mm(self.A_sp, x_state)
+        lhs = batch_mat_vec(self.A_sp, x_state)
 
         assert(len(lhs.shape) == 3 and lhs.shape[2] == 1) 
 
-        lhs = lhs.squeeze()
         rhs = x_control
         loss = ((lhs - rhs)**2).sum()
         return loss

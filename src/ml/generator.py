@@ -8,16 +8,16 @@ from ..graph.domain import GraphManual, GraphMSHR, GraphMSHRTrapezoid
 from ..graph.visualization import *
 
 
-def generate_gaussian_samples(args, graph, num_samps):
+def generate_gaussian_samples(args, graph, num_samps, linear_flag):
 
     def RBF_kernel(x1, x2):
-        sigma = 10
-        l = 0.1
+        sigma = 1
+        l = 0.5
         k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
         return k
      
     def mean(x):
-        return 0
+        return 0.
 
     M = graph.num_vertices
     coo = graph.coo
@@ -30,9 +30,12 @@ def generate_gaussian_samples(args, graph, num_samps):
             kernel_matrix[i][j] = RBF_kernel(coo[i], coo[j])
 
     samples = np.random.multivariate_normal(mean_vector, kernel_matrix, num_samps)
-    
-    np.save(args.root_path + '/' + args.numpy_path + '/' + graph.name +
+
+    save_path = '/linear/' if linear_flag else '/nonlinear/'
+    np.save(args.root_path + '/' + args.numpy_path + save_path + graph.name +
             '-Gaussian-' + str(num_samps) + '-' + str(M) + '.npy', samples)
+
+    return samples
 
 def generate_uniform_samples(args, graph, num_samps):
     M = graph.num_vertices
@@ -83,9 +86,11 @@ def linear_visual(args, graph):
 if __name__ == '__main__':
     args = arguments.args
     graph = GraphMSHRTrapezoid(args)
-    generate_deterministic_samples(args, graph, 3000)
+    # generate_deterministic_samples(args, graph, 3000)
+    samples = generate_gaussian_samples(args, graph, 1000, False)
 
-    # generate_uniform_samples(args, graph, 30000)
+    scalar_field_3D(samples[0], graph)
+    plt.show()
 
     # graph = GraphManual(args)
     # exp_visual(args, graph)

@@ -1,3 +1,7 @@
+"""Warning: mshr generates mesh randomly - with same input parameter the mesh might be different
+Better save the mesh and then always load (the same) mesh later on to avoid bugs caused by inconsistency
+"""
+
 import numpy as np
 import fenics as fa
 import mshr
@@ -26,10 +30,9 @@ def irregular_channel():
 
 if __name__ == '__main__':
     args = arguments.args
-
-    mesh = irregular_channel()
-    print(mesh.num_vertices())
-
-    file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
-    mesh.rename('u', 'u')
+    mesh = irregular_channel() 
+    file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')
+    mesh.rename('mesh', 'mesh')
     file << mesh
+    loaded_mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')
+    print(loaded_mesh.num_vertices())

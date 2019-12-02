@@ -113,3 +113,49 @@ def initialization(self):
     interior_flag = torch.ones(self.graph.num_vertices) - bc_flag_1 - bc_flag_2
 
     self.graph_info = [bc_value, interior_flag]
+
+def loss_function(self, x_control, x_state):
+    # loss function is defined so that PDE is satisfied
+    # x_control should be torch tensor with shape (batch, input_size)
+    # x_state should be torch tensor with shape (batch, input_size)
+    assert(x_control.shape == x_state.shape and len(x_control.shape) == 2)
+    x_state = x_state.unsqueeze(2)
+    x_control = x_control.unsqueeze(2)
+    source = self.source.unsqueeze(1)
+
+    grad_x1 = self.batch_mm(self.grad_x1_sp, x_state)
+    grad_x2 = self.batch_mm(self.grad_x2_sp, x_state)
+
+    density = 0.5*x_control*(grad_x1**2 + grad_x2**2) - x_state*source
+    loss = (density.squeeze() * self.weight_area).sum()
+    return loss
+
+    def batch_mm(matrix, vector_batch):
+    batch_size = vector_batch.shape[0]
+    # Stack the vector batch into columns. (b, n, 1) -> (n, b)
+    vectors = vector_batch.transpose(0, 1).reshape(-1, batch_size)
+
+    # A matrix-matrix product is a batched matrix-vector product of the columns.
+    # And then reverse the reshaping. (m, b) -> (b, m, 1)
+    return matrix.mm(vectors).transpose(1, 0).reshape(batch_size, -1, 1)
+
+    def exact_u(x1, x2):
+        return x1**2 + 3*x2**2
+    sol = get_graph_attributes(exact_u, self.graph)
+    sol = torch.tensor(sol).float()
+    grad_x1 = torch.matmul(self.gradient_x1_operator, sol)
+    lap_x1 = torch.matmul(self.gradient_x1_operator, grad_x1)
+    grad_x2 = torch.matmul(self.gradient_x2_operator, sol)
+    lap_x2 = torch.matmul(self.gradient_x2_operator, grad_x2)
+    lap = lap_x1 + lap_x2
+
+    def exact_u(x1, x2):
+        return x1 + 3*x2
+    sol = get_graph_attributes(exact_u, self.graph)
+    sol = torch.tensor(sol).float()
+    grad_x1 = torch.matmul(self.gradient_x1_operator, sol)
+    grad_x2 = torch.matmul(self.gradient_x2_operator, sol)
+    grad = grad_x1 + grad_x2
+
+    scalar_field_2D(sol, self.graph)
+    plt.show()

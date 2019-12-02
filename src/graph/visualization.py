@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import torch
 import mpl_toolkits.mplot3d as plt3d
 from matplotlib.collections import LineCollection
+import fenics as fa
 
 
 def model_prediction(source, graph, model):
@@ -13,13 +14,23 @@ def model_prediction(source, graph, model):
     solution = model(source)
     return np.squeeze(solution.data.numpy())
 
+def scalar_field_paraview(args, attribute, graph, name):
+    V = fa.FunctionSpace(graph.mesh, 'P', 1)
+    d_v = fa.dof_to_vertex_map(V)
+    solution = fa.Function(V)
+    dof_data = np.array([attribute[index] for index in d_v])
+    solution.vector()[:] = dof_data
+    file = fa.File(args.root_path + '/' + args.solutions_path + '/' + name + '.pvd')
+    solution.rename('u', 'u')
+    file << solution
+
 def scalar_field_3D(attribute, graph):
     max_att = np.max(attribute)
     min_att = np.min(attribute)
     range_att = max_att - min_att
     # print(np.max(attribute))
 
-    fig = plt.figure(0)
+    fig = plt.figure()
     # fig.set_size_inches(10, 10)
     ax = plt.axes(projection='3d')
 
@@ -36,7 +47,7 @@ def scalar_field_3D(attribute, graph):
     ax.autoscale(enable=True, axis='both', tight=None)
     ax.set_xlim3d(0, 2)
     ax.set_ylim3d(-1, 2)
-    ax.set_zlim3d(0, 2)
+    ax.set_zlim3d(-0.5, 0.5)
 
 def scalar_field_2D(attribute, graph):
     max_att = np.max(attribute)
