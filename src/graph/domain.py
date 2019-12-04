@@ -18,6 +18,7 @@ class Graph(object):
         self.gradient_x2 = self._assemble_gradient(self.x1, 1)
         self.reset_matrix_boundary = np.diag(self.boundary_flags)
         self.reset_matrix_interior = np.identity(self.num_vertices) - self.reset_matrix_boundary
+        self.laplacian = self._assemble_laplacian()
         print("Graph built!")
         # print(self.coo)
         # print(self.ordered_adjacency_list)
@@ -25,6 +26,26 @@ class Graph(object):
         # print(np.max(self.gradient_x1))
         # print(self.reset_matrix_boundary)
         # print(self.reset_matrix_interior)
+
+    def _assemble_laplacian(self):
+        laplacian = np.zeros((self.num_vertices, self.num_vertices))
+        for i in range(self.num_vertices):
+            if self.boundary_flags[i] != 1:
+                ordered_adjacency = self.ordered_adjacency_list[i]  
+                len_adj = len(ordered_adjacency)
+                for j in range(len_adj):
+                    idx_crt = ordered_adjacency[j]
+                    idx_alpha = ordered_adjacency[(j - 1 + len_adj) % len_adj]
+                    idx_beta = ordered_adjacency[(j + 1) % len_adj]
+                    coo_i = self.coo[i]
+                    coo_j = self.coo[idx_crt]
+                    coo_alpha = self.coo[idx_alpha]
+                    coo_beta = self.coo[idx_beta]
+                    cot_alpha = self._cot(coo_alpha, coo_i, coo_j)
+                    cot_beta = self._cot(coo_beta, coo_i, coo_j)
+                    laplacian[i][idx_crt] += 0.5*(cot_alpha + cot_beta)
+                    laplacian[i][i] += -0.5*(cot_alpha + cot_beta)
+        return laplacian
 
     def _assemble_gradient(self, x, flag):
         mult_1 = 1 if flag == 1 else -1
@@ -52,6 +73,13 @@ class Graph(object):
                                                    self.coo[ordered_adjacency[j]], 
                                                    self.coo[ordered_adjacency[(j + 1) % len(ordered_adjacency)]])
         return area
+
+    def _cot(self, coo_0, coo_1, coo_2):
+        # return cot of the angle formed by two vectors: (coo_1 - coo_0) and (coo_2 - coo_0)
+        vec1 = coo_1 - coo_0
+        vec2 = coo_2 - coo_0
+        theta = np.arccos( np.dot(vec1, vec2)/( np.linalg.norm(vec1)*np.linalg.norm(vec2) ) )
+        return 1./np.tan(theta)
 
     def _signed_tri_area(self, coo_0, coo_1, coo_2):
         return 0.5*((coo_2[1] - coo_0[1])*(coo_1[0] - coo_0[0]) 

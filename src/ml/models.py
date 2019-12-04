@@ -116,9 +116,3 @@ class MixedNetwork(nn.Module):
 
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x
-
-
-
-
-
-

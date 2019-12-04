@@ -93,7 +93,12 @@ class TrainerNonlinear(Trainer):
         self.fem_ground_truth()
         
         A_normalized = self.normalize_adj(self.graph.adjacency_matrix)
+
+        Lap = torch.tensor(self.graph.laplacian).float()
+        Lap = Lap.to_sparse()
+
         self.graph_info = [bc_value, interior_flag, A_normalized]
+        # self.graph_info = [bc_value, interior_flag, Lap]
 
 
     def save_progress(self, np_data, L_inf, L_fro, milestone, counter):
@@ -111,7 +116,7 @@ class TrainerNonlinear(Trainer):
 
         # nn.init.constant_(self.model.encoder.weight.data, 0.)
         self.optimizer = optim.Adam(self.model.parameters(), lr=5*1e-4)
-        # self.optimizer = optim.SGD(self.model.parameters(), lr=1e-5, momentum=0.7)
+        # self.optimizer = optim.SGD(self.model.parameters(), lr=1e-4, momentum=0.7)
 
         milestone = [ 2**(-i) for i in range(-1, 11) ]
         for epoch in range(self.args.epochs):
@@ -140,7 +145,6 @@ class TrainerNonlinear(Trainer):
         return mean_L2_error
 
 
-
     def debug_ground_truth(self):
         gradient_x1_operator = torch.tensor(self.graph.gradient_x1).float()
         gradient_x2_operator = torch.tensor(self.graph.gradient_x2).float()
@@ -161,25 +165,30 @@ class TrainerNonlinear(Trainer):
     def debug(self):
         self.initialization()
 
-        _, A_sp, _ = self.debug_ground_truth()
+        # _, A_sm, _ = self.debug_ground_truth()
+        A_sm = torch.tensor(self.graph.laplacian).float()
 
         def exact_u(x1, x2):
-            return x1**2 + x2**2
+            return x1**2 + x2**2 + 0.3*np.random.standard_normal(x2.shape)*(1 - self.graph.boundary_flags)
+
         sol = get_graph_attributes(exact_u, self.graph)
         # sol = self.data_X[0]
         scalar_field_paraview(self.args, sol, self.graph, "sol")
         sol = torch.tensor(sol).float().view(-1, 1)
 
-        smooth = torch.matmul(A_sp, sol) + sol
-        # for i in range(10):
-        #     smooth = torch.matmul(self.graph_info[2], smooth)
+        lmbda = 0.001
 
-        # smooth = torch.matmul(torch.tensor(self.A_debug).float(), sol)
+        tmp1 = np.concatenate((lmbda*torch.matmul(A_sm, sol).data.numpy(), sol.data.numpy()), axis=1)
+        tmp2 = np.expand_dims(self.graph.boundary_flags, axis=1)
+        tmp = np.concatenate((tmp1, tmp2), axis=1) 
+        # print(tmp)
+        smooth = lmbda*torch.matmul(A_sm, sol) + sol
+        for i in range(1000):
+            smooth = lmbda*torch.matmul(A_sm, smooth) + smooth
+
         scalar_field_paraview(self.args, smooth, self.graph, "sm")
-
-
 
 if __name__ == "__main__":
     args = arguments.args
     trainer = TrainerNonlinear(args)
-    trainer.debug()
+    trainer.run()
