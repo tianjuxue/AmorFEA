@@ -8,13 +8,19 @@ from .trainer import batch_mat_mat
 
 
 class LinearRegressor(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, graph_info=None):
         super(LinearRegressor, self).__init__()
         self.args = args
-        self.fc = nn.Linear(args.input_size, args.input_size, bias=False)
+        if graph_info is not None:
+            self.bc_value, self.interior_flag, _ = graph_info
+        else:
+            self.bc_value = None
+        self.fc = nn.Linear(args.input_size, args.input_size)
 
     def forward(self, x):
         x = self.fc(x)
+        if self.bc_value is not None:
+            x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x
 
 
@@ -24,8 +30,6 @@ class MLP(nn.Module):
         self.args = args
         self.bc_value, self.interior_flag, _ = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(), 
-                                 nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
@@ -103,13 +107,15 @@ class MixedNetwork(nn.Module):
         # self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size))
 
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(), 
+                                 nn.ReLU(), 
                                  nn.Linear(args.input_size, args.input_size))
 
     def forward(self, x):
         x = x.unsqueeze(2)
-        x = F.selu(self.gc1(x, self.adj))
-        x = F.selu(self.gc2(x, self.adj))
+        x = F.relu(self.gc1(x, self.adj))
+        x = F.relu(self.gc2(x, self.adj))
+        # x = F.selu(self.gc1(x, self.adj))
+        # x = F.selu(self.gc2(x, self.adj))
         x = x.squeeze()
 
         x = self.fcc(x)  
