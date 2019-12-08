@@ -4,11 +4,12 @@ from .. import arguments
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D, get_test_data
 from matplotlib import cm
-from ..graph.domain import GraphManual, GraphMSHR, GraphMSHRTrapezoid
 from ..graph.visualization import *
+from ..pde.poisson_square import PoissonSquare
+from ..pde.poisson_trapezoid import PoissonTrapezoid
 
 
-def generate_gaussian_samples(args, graph, num_samps, linear_flag):
+def generate_gaussian_samples(args, pde, num_samps, linear_flag):
 
     def RBF_kernel(x1, x2):
         sigma = 1
@@ -19,8 +20,8 @@ def generate_gaussian_samples(args, graph, num_samps, linear_flag):
     def mean(x):
         return 0.
 
-    M = graph.num_vertices
-    coo = graph.coo
+    M = pde.num_dofs
+    coo = pde.coo_dof
     kernel_matrix = np.zeros((M, M))
     mean_vector = np.zeros(M)
 
@@ -32,23 +33,24 @@ def generate_gaussian_samples(args, graph, num_samps, linear_flag):
     samples = np.random.multivariate_normal(mean_vector, kernel_matrix, num_samps)
 
     save_path = '/linear/' if linear_flag else '/nonlinear/'
-    np.save(args.root_path + '/' + args.numpy_path + save_path + graph.name +
+    np.save(args.root_path + '/' + args.numpy_path + save_path + pde.name +
             '-Gaussian-' + str(num_samps) + '-' + str(M) + '.npy', samples)
 
     return samples
 
-def generate_uniform_samples(args, graph, num_samps):
-    M = graph.num_vertices
+def generate_uniform_samples(args, pde, num_samps):
+    M = pde.num_dofs
     samples = np.random.uniform(-1, 1, (num_samps, M))
-    np.save(args.root_path + '/' + args.numpy_path + '/' + graph.name +
+    np.save(args.root_path + '/' + args.numpy_path + '/linear/' + pde.name +
             '-Uniform-' + str(num_samps) + '-' + str(M) + '.npy', samples)
+    return samples
 
-def generate_multinomial_samples(args, graph, num_samps):
-    M = graph.num_vertices
+def generate_multinomial_samples(args, pde, num_samps):
+    M = pde.num_dofs
     samples = np.random.multinomial(1, [1/M]*M, size=num_samps)
-    np.save(args.root_path + '/' + args.numpy_path + '/' + graph.name +
+    np.save(args.root_path + '/' + args.numpy_path + '/' + pde.name +
             '-Multi-' + str(num_samps) + '-' + str(M) + '.npy', samples)
-
+    return samples
 
 def f1(x1, x2):
     return np.ones_like(x1)
@@ -85,13 +87,10 @@ def linear_visual(args, graph):
 
 if __name__ == '__main__':
     args = arguments.args
-    graph = GraphMSHRTrapezoid(args)
-    # generate_deterministic_samples(args, graph, 3000)
-    samples = generate_gaussian_samples(args, graph, 1000, False)
+    # poisson_square = PoissonSquare(args)
+    # samples = generate_uniform_samples(args, poisson_square, 30000)
+    poisson_trapezoid = PoissonTrapezoid(args)
+    samples = generate_gaussian_samples(args, poisson_trapezoid, 30000, False)
+    scalar_field_paraview(args, samples[0], poisson_trapezoid, 'debug_source')
+ 
 
-    scalar_field_3D(samples[0], graph)
-    plt.show()
-
-    # graph = GraphManual(args)
-    # exp_visual(args, graph)
-    # plt.show()

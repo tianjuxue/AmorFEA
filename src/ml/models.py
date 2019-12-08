@@ -4,23 +4,21 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 from torch.nn.modules.module import Module
-from .trainer import batch_mat_mat
+from .trainer import batch_mat_mat, batch_mat_vec, batch_mat_vec_2
 
 
 class LinearRegressor(nn.Module):
-    def __init__(self, args, graph_info=None):
+    def __init__(self, args, graph_info):
         super(LinearRegressor, self).__init__()
         self.args = args
-        if graph_info is not None:
-            self.bc_value, self.interior_flag, _ = graph_info
-        else:
-            self.bc_value = None
-        self.fc = nn.Linear(args.input_size, args.input_size)
+        self.bc_value, self.interior_flag, _, self.B_sp = graph_info
+        self.fc = nn.Linear(args.input_size, args.input_size, bias=False)
 
     def forward(self, x):
+        x = batch_mat_vec(self.B_sp, x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
         x = self.fc(x)
-        if self.bc_value is not None:
-            x = torch.addcmul(self.bc_value, x, self.interior_flag)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x
 
 
@@ -28,7 +26,7 @@ class MLP(nn.Module):
     def __init__(self, args, graph_info):
         super(MLP, self).__init__()
         self.args = args
-        self.bc_value, self.interior_flag, _ = graph_info
+        self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size),
@@ -36,6 +34,8 @@ class MLP(nn.Module):
                                  nn.Linear(args.input_size, args.input_size))
 
     def forward(self, x):
+        x = batch_mat_vec(self.B_sp, x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
         x = self.fcc(x)
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x
@@ -45,8 +45,7 @@ class GraphConvolution(Module):
     """
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
     """
-
-    def __init__(self, in_features, out_features, bias=True):
+    def __init__(self, in_features, out_features, bias=False):
         super(GraphConvolution, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -75,50 +74,51 @@ class GraphConvolution(Module):
         else:
             return output
 
-class GCN(nn.Module):
-    def __init__(self, args, graph_info):
-        super(GCN, self).__init__()
-        self.args = args
-        self.bc_value, self.interior_flag, self.adj = graph_info
-        self.gc1 = GraphConvolution(1, 1000)
-        self.gc2 = GraphConvolution(1000, 1)
-
-    def forward(self, x):
-        # we want x to be (N, 1)
-        x = x.squeeze().unsqueeze(1)
-        assert(len(x.shape) == 2)
-        x = F.selu(self.gc1(x, self.adj))
-        x = self.gc2(x, self.adj).squeeze()
-        x = torch.addcmul(self.bc_value, x, self.interior_flag)
-        return x
-
-        # x = F.dropout(x, self.dropout)
-
 
 class MixedNetwork(nn.Module):
     def __init__(self, args, graph_info):
         super(MixedNetwork, self).__init__()
         self.args = args
-        self.bc_value, self.interior_flag, self.adj = graph_info
+        self.bc_value, self.interior_flag, self.adj, self.B_sp = graph_info
 
         self.gc1 = GraphConvolution(1, 20)
         self.gc2 = GraphConvolution(20, 1)
 
-        # self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size))
-
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-                                 nn.ReLU(), 
+                                 nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size))
 
     def forward(self, x):
+        x = batch_mat_vec(self.B_sp, x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
+
         x = x.unsqueeze(2)
-        x = F.relu(self.gc1(x, self.adj))
-        x = F.relu(self.gc2(x, self.adj))
-        # x = F.selu(self.gc1(x, self.adj))
-        # x = F.selu(self.gc2(x, self.adj))
+        x = F.selu(self.gc1(x, self.adj))
+        x = F.selu(self.gc2(x, self.adj))
         x = x.squeeze()
 
         x = self.fcc(x)  
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
+
+        return x
+
+
+class GCN(nn.Module):
+    def __init__(self, args, graph_info):
+        super(GCN, self).__init__()
+        self.args = args
+        self.bc_value, self.interior_flag, self.adj, self.B_sp = graph_info
+        self.gc1 = GraphConvolution(1, 20)
+        self.gc2 = GraphConvolution(20, 1)
+
+    def forward(self, x):
+        x = batch_mat_vec(self.B_sp, x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
+
+        x = x.unsqueeze(2)
+        x = F.selu(self.gc1(x, self.adj))
+        x = F.selu(self.gc2(x, self.adj))
+        x = x.squeeze()
 
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x

@@ -159,3 +159,32 @@ def loss_function(self, x_control, x_state):
 
     scalar_field_2D(sol, self.graph)
     plt.show()
+
+def save_progress(self, np_data, L_inf, L_fro, milestone, counter):
+    if L_inf < milestone[counter]:
+        torch.save(self.model, self.args.root_path + '/' + self.args.model_path + '/linear/model_' + str(counter))
+        np.save(self.args.root_path + '/' + self.args.numpy_path + '/linear/error_' + str(counter), np_data)
+        counter += 1
+    return counter
+
+C_np = []
+default = np.zeros(self.num_dofs)
+w = [fa.Function(self.V) for i in range(4)]
+adjacency_list = self.get_adjacency_list()
+for index, neighbors in enumerate(adjacency_list):
+    print(index)
+    print(len(C_np))
+    neighbors.append(index)
+    for i in neighbors:
+        for j in neighbors:
+            for k in neighbors:
+                for l in neighbors:
+                    w = [fa.Function(self.V) for _ in range(4)] 
+                    w[0].vector()[i] = 1.
+                    w[1].vector()[j] = 1.
+                    w[2].vector()[k] = 1.
+                    w[3].vector()[l] = 1.
+                    value = fa.assemble(w[0]*w[1]*w[2]*w[3]*fa.dx)
+                    if value != 0:
+                        C_np.append(((i, j, k, l), value))
+print(len(C_np))

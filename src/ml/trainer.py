@@ -65,7 +65,7 @@ class Trainer(object):
         print('====> Epoch: {} Average loss: {:.6f}'.format(epoch, train_loss))
         return train_loss
 
-    def test(self, epoch):
+    def test_by_loss(self, epoch):
         self.model.eval()
         test_loss = 0
         with torch.no_grad():
@@ -76,6 +76,34 @@ class Trainer(object):
         test_loss /= len(self.test_loader.dataset)
         print('====> Epoch: {} Test set loss: {:.6f}'.format(epoch, test_loss))
         return test_loss
+
+    def FEM_evaluation(self):
+        num_fem_test = 100
+        self.fem_test = self.test_X[:num_fem_test]
+        fem_solution = []
+        for i in range(num_fem_test):
+            self.poisson.set_control_variable(self.fem_test[i])
+            u = self.poisson.solve_problem_variational_form()
+            dof_data = u.vector()[:]
+            fem_solution.append(dof_data)
+        self.fem_solution = torch.Tensor(fem_solution).float()
+
+    def test_by_FEM(self, epoch):
+        self.model.eval()
+        recon_batch = self.model(self.fem_test)
+        error = recon_batch - self.fem_solution
+        tmp = batch_mat_vec(self.B_sp, error)
+        tmp = tmp*error
+        mean_L2_error = tmp.sum(dim=1).sqrt().mean()
+
+        print('====> Mean L2 error: {:.8f}'.format(mean_L2_error))
+
+        index = epoch%self.fem_test.shape[0]
+        scalar_field_paraview(self.args, self.fem_test[index].data.numpy(), self.poisson, "source")
+        scalar_field_paraview(self.args, self.fem_solution[index].data.numpy(), self.poisson, "fem")
+        scalar_field_paraview(self.args, recon_batch[index].data.numpy(), self.poisson, "nn")
+
+        return mean_L2_error
 
 
 # # '''Helpers'''
@@ -94,5 +122,24 @@ def batch_mat_mat(sparse_matrix, matrix_batch):
     batch_size = matrix_batch.shape[0]
     x = torch.stack([torch.mm(sparse_matrix, matrix_batch[i].float()) for i in range(batch_size)])
     # x = torch.matmul(sparse_matrix.to_dense(), matrix_batch)
-    # x = torch.matmul(sparse_matrix, matrix_batch)
     return x
+
+def batch_mat_vec_2(dense_matrix, vector_batch):
+    # dense_matrix: (k, n)
+    # vector_batch: (b, n)
+    vector_batch = vector_batch.unsqueeze(2)
+    result = torch.matmul(dense_matrix, vector_batch)
+    result = result.squeeze()
+    return result
+
+def normalize_adj(A):
+    size = A.shape[0]
+    A = A + np.identity(size)
+    D = np.array(A.sum(1))
+    D = np.diag(D**(-0.5))
+    A_normalized = np.matmul(np.matmul(D, A), D)
+    A_normalized = torch.tensor(A_normalized).float()
+    A_sp = A_normalized.to_sparse()
+    return A_sp
+
+    # return torch.tensor(A).float().to_sparse() 

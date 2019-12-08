@@ -7,13 +7,12 @@ import fenics as fa
 from .poisson import Poisson
 from ..graph.custom_mesh import irregular_channel
 from .. import arguments
-from ..graph.domain import GraphMSHRTrapezoid
+
 
 class PoissonTrapezoid(Poisson):
     def __init__(self, args):
-        self.args = args
-        self._build_mesh()
-        self._build_function_space()
+        super(PoissonTrapezoid, self).__init__(args)
+        self.name = 'trapezoid'
 
     def _build_mesh(self):
         self.mesh = fa.Mesh(self.args.root_path + '/' + 
@@ -45,10 +44,6 @@ class PoissonTrapezoid(Poisson):
                 return on_boundary and is_circle_boundary
 
         self.V = fa.FunctionSpace(self.mesh, 'P', 1)
-        self.v_d = fa.vertex_to_dof_map(self.V)
-        self.d_v = fa.dof_to_vertex_map(self.V)
-        self.coo_dof = self.V.tabulate_dof_coordinates()
-        self.coo_ver = self.mesh.coordinates()
 
         self.sub_domains = fa.MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
         self.sub_domains.set_all(0)
@@ -76,43 +71,28 @@ class PoissonTrapezoid(Poisson):
         boundary_bc_right = fa.DirichletBC(self.V, fa.Constant(0.), self.right)
         self.bcs = [boundary_bc_left, boundary_bc_right]
 
-    def set_control_variable(self, vertex_data):
-        # self.medium = fa.Function(self.V)
-        # dof_data = np.array([vertex_data[index] for index in self.d_v])
-        # self.medium.vector()[:] = dof_data
-
+    def set_control_variable(self, dof_data):
         self.source = fa.Function(self.V)
-        dof_data = np.array([vertex_data[index] for index in self.d_v])
         self.source.vector()[:] = dof_data
 
-        # file = fa.File(self.args.root_path + '/' + self.args.solutions_path + '/u.pvd')
-        # self.medium.rename('u', 'u')
-        # file << self.medium
+    # def solve_problem_weak_form(self):
+    #     u = fa.Function(self.V)      
+    #     du = fa.TrialFunction(self.V)
+    #     v  = fa.TestFunction(self.V)
+    #     F  = fa.inner(fa.grad(u), fa.grad(v))*fa.dx - self.source*v*fa.dx
+    #     J  = fa.derivative(F, u, du)  
 
-        
-    def solve_problem_weak_form(self):
-        u = fa.Function(self.V)      
-        du = fa.TrialFunction(self.V)
-        v  = fa.TestFunction(self.V)
-        F  = fa.inner(self.medium*fa.grad(u), fa.grad(v))*fa.dx - self.source*v*fa.dx
-        J  = fa.derivative(F, u, du)  
-
-        # Change your boundary conditions here
-        boundary_bc_left = fa.DirichletBC(self.V, fa.Constant(0.), self.left)
-        boundary_bc_right = fa.DirichletBC(self.V, fa.Constant(0.), self.right)
-        bcs = [boundary_bc_left, boundary_bc_right]
-
-        # The problem in this case is indeed linear, but using a nonlinear solver doesn't hurt
-        problem = fa.NonlinearVariationalProblem(F, u, self.bcs, J)
-        solver  = fa.NonlinearVariationalSolver(problem)
-        solver.solve()
-        return u
+    #     # The problem in this case is indeed linear, but using a nonlinear solver doesn't hurt
+    #     problem = fa.NonlinearVariationalProblem(F, u, self.bcs, J)
+    #     solver  = fa.NonlinearVariationalSolver(problem)
+    #     solver.solve()
+    #     return u
 
     # Constitutive relationships
     def _energy_density(self, u):
         # variational energy density of u
         # energy = 0.5*self.medium*fa.dot(fa.grad(u), fa.grad(u)) - u*self.source
-        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) + 1*0.5*u**2 + 1*0.25*u**4 - u*self.source
+        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) + 1*0.5*u**2 + 0.25*u**4 - u*self.source
         return energy
 
     def energy(self, u):
@@ -128,20 +108,50 @@ class PoissonTrapezoid(Poisson):
         fa.solve(dE == 0, u, self.bcs, J=jacE)
         return u
 
+    def _set_detailed_boundary_flags(self):
+        # To check
+        x1 = self.coo_dof[:, 0]
+        x2 = self.coo_dof[:, 1]
+        boundary_flags_list = [np.zeros(self.num_dofs) for i in range(3)] 
+        for i in range(self.num_dofs):
+            if self.boundary_flags[i] == 1:
+                if x1[i] < 1e-10:
+                    boundary_flags_list[0][i] = 1
+                if x1[i] > 2 - 1e-10:
+                    boundary_flags_list[1][i] = 1
+                if np.abs(x2[i] - 0.5*x1[i] - 1) < 1e-10 or \
+                   np.abs(x2[i] + 0.5*x1[i]) < 1e-10 or \
+                   x1[i] > 1e-10 and x1[i] < 2 - 1e-10:
+                   boundary_flags_list[2][i] = 1
+        self.boundary_flags_list =  boundary_flags_list
+
+    def compute_operators(self):
+        u = fa.TrialFunction(self.V)
+        v = fa.TestFunction(self.V)
+        form_a = fa.inner(fa.grad(u), fa.grad(v))*fa.dx 
+        form_b = u*v*fa.dx 
+        A = fa.assemble(form_a)
+        B = fa.assemble(form_b)
+        A_np = np.array(A.array())
+        B_np = np.array(B.array())
+        return A_np, B_np
+
+    def debug(self):
+        v = fa.Function(self.V)
+        v.vector()[4] = 1
+        u = fa.Function(self.V)
+        u.vector()[4] = 1
+        print(value)
+
+
 if __name__ == '__main__':
     args = arguments.args
     pde = PoissonTrapezoid(args)
-    graph = GraphMSHRTrapezoid(args)
+    adjacency_matrix = pde.get_adjacency_matrix()
 
-    data_X = np.load(args.root_path + '/' + args.numpy_path + '/nonlinear/'
-                     +graph.name + '-Gaussian-3000-' + str(graph.num_vertices) + '.npy')
+    print(adjacency_matrix.sum())
 
-    pde.set_control_variable(data_X[3])
-
-    u = pde.solve_problem_variational_form()
-
-    print(pde.energy(u))
-
-    file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
-    u.rename('u', 'u')
-    file << u
+    # print(pde.energy(u))
+    # file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
+    # u.rename('u', 'u')
+    # file << u

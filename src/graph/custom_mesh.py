@@ -8,7 +8,7 @@ import mshr
 from .. import arguments
 
 def unit_disk():
-    mshr.generate_mesh(mshr.Circle(fa.Point(0, 0), 1), 20)
+    mesh = mshr.generate_mesh(mshr.Circle(fa.Point(0, 0), 1), 20)
     return mesh
 
 def irregular_channel():
@@ -28,11 +28,15 @@ def irregular_channel():
     mesh = mshr.generate_mesh(outline - circle_1 - circle_2 - circle_3, resolution)
     return mesh
 
+def unit_square():
+    mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 30, 30) 
+    return mesh
+
 if __name__ == '__main__':
     args = arguments.args
-    mesh = irregular_channel() 
-    file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')
+    mesh = unit_square() 
+    file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
     mesh.rename('mesh', 'mesh')
     file << mesh
-    loaded_mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')
+    loaded_mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
     print(loaded_mesh.num_vertices())

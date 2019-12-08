@@ -14,12 +14,9 @@ def model_prediction(source, graph, model):
     solution = model(source)
     return np.squeeze(solution.data.numpy())
 
-def scalar_field_paraview(args, attribute, graph, name):
-    V = fa.FunctionSpace(graph.mesh, 'P', 1)
-    d_v = fa.dof_to_vertex_map(V)
-    solution = fa.Function(V)
-    dof_data = np.array([attribute[index] for index in d_v])
-    solution.vector()[:] = dof_data
+def scalar_field_paraview(args, attribute, pde, name):
+    solution = fa.Function(pde.V)
+    solution.vector()[:] = attribute
     file = fa.File(args.root_path + '/' + args.solutions_path + '/' + name + '.pvd')
     solution.rename('u', 'u')
     file << solution
