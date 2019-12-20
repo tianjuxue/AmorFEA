@@ -7,16 +7,27 @@ from matplotlib import cm
 from ..graph.visualization import *
 from ..pde.poisson_square import PoissonSquare
 from ..pde.poisson_trapezoid import PoissonTrapezoid
+from ..pde.soft_robot import SoftRobot
 
 
-def generate_gaussian_samples(args, pde, num_samps, linear_flag):
+def generate_gaussian_samples(args, pde, num_samps, case_flag):
+
+    # TODO(Tianju): Make this general
+    # def RBF_kernel(x1, x2):
+    #     sigma = 1
+    #     l = 0.5
+    #     k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
+    #     return k
 
     def RBF_kernel(x1, x2):
         sigma = 1
-        l = 0.5
-        k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
+        l1 = 0.01
+        l2 = 5
+        d1 = (x1[0] - x2[0])**2
+        d2 = (x1[1] - x2[1])**2
+        k = sigma**2 * np.exp( -d1/(2*l1**2) - d2/(2*l2**2))
         return k
-     
+
     def mean(x):
         return 0.
 
@@ -31,8 +42,14 @@ def generate_gaussian_samples(args, pde, num_samps, linear_flag):
             kernel_matrix[i][j] = RBF_kernel(coo[i], coo[j])
 
     samples = np.random.multivariate_normal(mean_vector, kernel_matrix, num_samps)
+ 
+    if case_flag == 0:
+        save_path = '/linear/'
+    elif case_flag == 1:
+        save_path = '/nonlinear/'
+    else:
+        save_path = '/robot/'
 
-    save_path = '/linear/' if linear_flag else '/nonlinear/'
     np.save(args.root_path + '/' + args.numpy_path + save_path + pde.name +
             '-Gaussian-' + str(num_samps) + '-' + str(M) + '.npy', samples)
 
@@ -87,10 +104,15 @@ def linear_visual(args, graph):
 
 if __name__ == '__main__':
     args = arguments.args
-    # poisson_square = PoissonSquare(args)
-    # samples = generate_uniform_samples(args, poisson_square, 30000)
-    poisson_trapezoid = PoissonTrapezoid(args)
-    samples = generate_gaussian_samples(args, poisson_trapezoid, 30000, False)
-    scalar_field_paraview(args, samples[0], poisson_trapezoid, 'debug_source')
- 
+    case_flag = 2
+    if case_flag == 0:
+        poisson_square = PoissonSquare(args)
+        samples = generate_uniform_samples(args, poisson_square, 30000)
+    elif case_flag == 1:
+        poisson_trapezoid = PoissonTrapezoid(args)
+        samples = generate_gaussian_samples(args, poisson_trapezoid, 3000, case_flag)
+    else:
+        soft_robot = SoftRobot(args)
+        samples = generate_gaussian_samples(args, soft_robot, 3000, case_flag)
 
+    scalar_field_paraview(args, samples[2], soft_robot, 'debug_source')

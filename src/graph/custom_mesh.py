@@ -32,11 +32,29 @@ def unit_square():
     mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 30, 30) 
     return mesh
 
+def slender_rod():
+    mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 10), 2, 20) 
+    return mesh
+
+
 if __name__ == '__main__':
     args = arguments.args
-    mesh = unit_square() 
-    file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
-    mesh.rename('mesh', 'mesh')
+    case_flag = 2
+    if case_flag == 0:
+        mesh = unit_square() 
+        file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
+    elif case_flag == 1:
+        mesh = irregular_channel() 
+        file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')
+    else:
+        mesh = slender_rod() 
+        file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
+
     file << mesh
-    loaded_mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
-    print(loaded_mesh.num_vertices())
+    
+    # loaded_mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
+    # print(loaded_mesh.num_vertices())
+
+    # file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
+    # mesh.rename('mesh', 'mesh')
+    # file << mesh

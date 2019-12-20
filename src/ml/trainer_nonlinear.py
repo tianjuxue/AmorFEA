@@ -19,7 +19,6 @@ class TrainerNonlinear(Trainer):
     def __init__(self, args):
         super(TrainerNonlinear, self).__init__(args)
         self.poisson = PoissonTrapezoid(self.args)
-        self.args.input_size = self.poisson.num_dofs
 
     def loss_function(self, x_control, x_state):
         # loss function is defined so that PDE is satisfied
@@ -46,6 +45,7 @@ class TrainerNonlinear(Trainer):
         self.data_X = np.load(self.args.root_path + '/' + self.args.numpy_path + '/nonlinear/' + self.poisson.name 
                               +'-Gaussian-30000-' + str(self.poisson.num_dofs) + '.npy')
         self.train_loader, self.test_loader = self.shuffle_data()
+        self.args.input_size = self.data_X.shape[1]
 
         A_np, B_np = self.poisson.compute_operators()
         A = torch.tensor(A_np).float()
@@ -66,8 +66,8 @@ class TrainerNonlinear(Trainer):
         adjacency_matrix = self.poisson.get_adjacency_matrix()
         A_normalized = normalize_adj(adjacency_matrix)
         self.graph_info = [bc_value, interior_flag, A_normalized, self.B_sp]
-        self.reset_matrix_boundary = np.diag(self.poisson.boundary_flags)
-        self.reset_matrix_interior = np.identity(self.poisson.num_dofs) - self.reset_matrix_boundary
+        # self.reset_matrix_boundary = np.diag(self.poisson.boundary_flags)
+        # self.reset_matrix_interior = np.identity(self.poisson.num_dofs) - self.reset_matrix_boundary
 
         self.FEM_evaluation()  
 

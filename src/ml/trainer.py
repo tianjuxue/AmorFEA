@@ -124,14 +124,6 @@ def batch_mat_mat(sparse_matrix, matrix_batch):
     # x = torch.matmul(sparse_matrix.to_dense(), matrix_batch)
     return x
 
-def batch_mat_vec_2(dense_matrix, vector_batch):
-    # dense_matrix: (k, n)
-    # vector_batch: (b, n)
-    vector_batch = vector_batch.unsqueeze(2)
-    result = torch.matmul(dense_matrix, vector_batch)
-    result = result.squeeze()
-    return result
-
 def normalize_adj(A):
     size = A.shape[0]
     A = A + np.identity(size)
@@ -141,5 +133,15 @@ def normalize_adj(A):
     A_normalized = torch.tensor(A_normalized).float()
     A_sp = A_normalized.to_sparse()
     return A_sp
-
     # return torch.tensor(A).float().to_sparse() 
+
+def boundary_flag_matrix(boundary_flag):
+    # something like [0,0,1,1,0] to
+    # [[0,0,1,0,0], [0,0,0,1,0]]
+    bc_mat = []
+    for i, number in enumerate(boundary_flag):
+        if number == 1:
+            row = np.zeros(len(boundary_flag))
+            row[i] = 1
+            bc_mat.append(row)
+    return np.array(bc_mat)

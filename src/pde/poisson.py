@@ -27,6 +27,15 @@ class Poisson(object):
         self._set_boundary_flags()
         self._set_detailed_boundary_flags()
 
+        # print(self.num_dofs)
+        # print(self.num_vertices)
+        # print(self.coo_dof)
+        # print(self.coo_ver)
+
+        # for cell_no in range(self.mesh.num_cells()):
+        #     dofs = self.V.dofmap().cell_dofs(cell_no)
+        #     print(dofs)
+
     def _set_boundary_flags(self):
         bmesh = fa.BoundaryMesh(self.mesh, "exterior", True)
         bmesh_coos = bmesh.coordinates()
@@ -70,7 +79,6 @@ class Poisson(object):
                 for i in cell:
                     if self.d_v[index] == i:
                         weight_area[index] += self._cell_area(cell)
-
         return 1./3.*weight_area
 
     def solve_problem_weak_form(self):

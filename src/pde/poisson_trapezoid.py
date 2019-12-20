@@ -75,19 +75,6 @@ class PoissonTrapezoid(Poisson):
         self.source = fa.Function(self.V)
         self.source.vector()[:] = dof_data
 
-    # def solve_problem_weak_form(self):
-    #     u = fa.Function(self.V)      
-    #     du = fa.TrialFunction(self.V)
-    #     v  = fa.TestFunction(self.V)
-    #     F  = fa.inner(fa.grad(u), fa.grad(v))*fa.dx - self.source*v*fa.dx
-    #     J  = fa.derivative(F, u, du)  
-
-    #     # The problem in this case is indeed linear, but using a nonlinear solver doesn't hurt
-    #     problem = fa.NonlinearVariationalProblem(F, u, self.bcs, J)
-    #     solver  = fa.NonlinearVariationalSolver(problem)
-    #     solver.solve()
-    #     return u
-
     # Constitutive relationships
     def _energy_density(self, u):
         # variational energy density of u

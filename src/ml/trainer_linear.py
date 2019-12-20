@@ -19,7 +19,6 @@ class TrainerLinear(Trainer):
     def __init__(self, args):
         super(TrainerLinear, self).__init__(args)
         self.poisson = PoissonSquare(self.args)
-        self.args.input_size = self.poisson.num_dofs
 
     def loss_function(self, x_control, x_state):
         # loss function is defined so that PDE is satisfied
@@ -41,6 +40,7 @@ class TrainerLinear(Trainer):
         self.data_X = np.load(self.args.root_path + '/' + self.args.numpy_path + '/linear/' + 
                          self.poisson.name + '-Uniform-30000-' + str(self.poisson.num_dofs) + '.npy')
         self.train_loader, self.test_loader = self.shuffle_data()
+        self.args.input_size = self.data_X.shape[1]
 
         A_np, B_np, A_np_modified = self.poisson.compute_operators()
         A = torch.tensor(A_np).float()
