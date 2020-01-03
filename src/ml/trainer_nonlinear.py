@@ -12,13 +12,15 @@ from .trainer import Trainer, batch_mat_vec, normalize_adj
 from .models import LinearRegressor, MLP, GCN, MixedNetwork
 from ..pde.poisson_trapezoid import PoissonTrapezoid
 from .. import arguments
-from ..graph.visualization import *
+from ..graph.visualization import scalar_field_paraview
 
 
 class TrainerNonlinear(Trainer):
     def __init__(self, args):
         super(TrainerNonlinear, self).__init__(args)
         self.poisson = PoissonTrapezoid(self.args)
+        self.initialization()
+
 
     def loss_function(self, x_control, x_state):
         # loss function is defined so that PDE is satisfied
@@ -72,8 +74,6 @@ class TrainerNonlinear(Trainer):
         self.FEM_evaluation()  
 
     def run(self):
-        self.initialization()
-
         self.model = MixedNetwork(self.args, self.graph_info)
         # self.model.fc.weight.data = torch.zeros((self.args.input_size, self.args.input_size))
 

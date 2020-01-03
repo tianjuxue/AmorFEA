@@ -183,7 +183,9 @@ class SoftRobot(Poisson):
         F10 = np.transpose(np.array(F10))
         F11 = np.transpose(np.array(F11)) - 1
 
-        return F00, F01, F10, F11
+        F = [F00, F01, F10, F11]
+        np.save(self.args.root_path + '/' + self.args.numpy_path + '/robot/' + 'F' + '.npy', F)
+        return F
 
     def compute_areas(self):
         w = fa.Function(self.W)

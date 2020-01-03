@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 import numpy as np
 from .. import arguments
-from ..graph.visualization import *
+from ..graph.visualization import scalar_field_paraview
 
 
 class Trainer(object):

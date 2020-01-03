@@ -19,6 +19,7 @@ class TrainerRobot(Trainer):
     def __init__(self, args):
         super(TrainerRobot, self).__init__(args)
         self.poisson = SoftRobot(self.args)
+        self.initialization()
 
 
     def loss_function(self, x_control, x_state):
@@ -45,7 +46,6 @@ class TrainerRobot(Trainer):
 
 
     def initialization(self):
-
         bc_btm, bc_lx, bc_ly, bc_rx, bc_ry = self.poisson.boundary_flags_list
         interior = np.ones(self.poisson.num_dofs)
         for bc in self.poisson.boundary_flags_list:
@@ -94,31 +94,38 @@ class TrainerRobot(Trainer):
         self.args.input_size = self.data_X.shape[1]
         self.train_loader, self.test_loader = self.shuffle_data()
 
-        F00, F01, F10, F11 = self.poisson.compute_operators()
+        F00, F01, F10, F11 = np.load(self.args.root_path + '/' + self.args.numpy_path + '/robot/' + 'F' + '.npy')
+        # F00, F01, F10, F11 = self.poisson.compute_operators()
         self.F00 = torch.tensor(F00).float().to_sparse()
         self.F01 = torch.tensor(F01).float().to_sparse()
         self.F10 = torch.tensor(F10).float().to_sparse()
         self.F11 = torch.tensor(F11).float().to_sparse()
         self.weight_area = torch.tensor(self.poisson.compute_areas()).float()
 
-        bc_btm_mat = torch.tensor(bc_btm_mat).float().to_sparse()
-        bc_lx_mat = torch.tensor(bc_lx_mat).float().to_sparse()
-        bc_ly_mat = torch.tensor(bc_ly_mat).float().to_sparse()
-        bc_rx_mat = torch.tensor(bc_rx_mat).float().to_sparse()
-        bc_ry_mat = torch.tensor(bc_ry_mat).float().to_sparse()
-        int_mat = torch.tensor(int_mat).float().to_sparse()
+
+        bc_btm_mat = torch.tensor(bc_btm_mat).float()
+        bc_lx_mat = torch.tensor(bc_lx_mat).float()
+        bc_ly_mat = torch.tensor(bc_ly_mat).float()
+        bc_rx_mat = torch.tensor(bc_rx_mat).float()
+        bc_ry_mat = torch.tensor(bc_ry_mat).float()
+        int_mat = torch.tensor(int_mat).float()
+
+        # bc_btm_mat = torch.tensor(bc_btm_mat).float().to_sparse()
+        # bc_lx_mat = torch.tensor(bc_lx_mat).float().to_sparse()
+        # bc_ly_mat = torch.tensor(bc_ly_mat).float().to_sparse()
+        # bc_rx_mat = torch.tensor(bc_rx_mat).float().to_sparse()
+        # bc_ry_mat = torch.tensor(bc_ry_mat).float().to_sparse()
+        # int_mat = torch.tensor(int_mat).float().to_sparse()
         mat_list = [bc_btm_mat, bc_lx_mat, bc_ly_mat, bc_rx_mat, bc_ry_mat, int_mat]
 
         self.graph_info = [mat_list, joints, coo_diff, shapes]
 
  
     def run(self):
-        self.initialization()
-
         self.model = RobotNetwork(self.args, self.graph_info)
         # self.model.fc.weight.data = torch.zeros((self.args.input_size, self.args.input_size))
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=5*1e-5)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-5)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-3, max_iter=20, history_size=40)
         # self.optimizer = optim.SGD(self.model.parameters(), lr=1e-4, momentum=0.85, weight_decay=0.1)
 
@@ -136,7 +143,6 @@ class TrainerRobot(Trainer):
 
 
     def debug(self):
-        self.initialization()
         self.model = RobotNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_' + str(0)))
 
