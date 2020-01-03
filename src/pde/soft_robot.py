@@ -15,8 +15,9 @@ class SoftRobot(Poisson):
 
     def _build_mesh(self):
         args = self.args
-        mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
-        # mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 10), 2, 20)
+        self.width = 0.5  
+        # mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
+        mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(self.width, 10), 2, 20, 'crossed')
         self.mesh = mesh
 
         # file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
@@ -24,6 +25,7 @@ class SoftRobot(Poisson):
         # file << mesh
 
     def _build_function_space(self):
+        width = self.width
         class Exterior(fa.SubDomain):
             def inside(self, x, on_boundary):
                 return on_boundary and (
@@ -38,7 +40,7 @@ class SoftRobot(Poisson):
 
         class Right(fa.SubDomain):
             def inside(self, x, on_boundary):
-                return on_boundary and fa.near(x[0], 1)
+                return on_boundary and fa.near(x[0], width)
 
         class Bottom(fa.SubDomain):
             def inside(self, x, on_boundary):
@@ -103,7 +105,7 @@ class SoftRobot(Poisson):
                         boundary_flags_list[2][i] = 1
                     counter_left += 1
 
-                if x1[i] > 1 - 1e-10:
+                if x1[i] > self.width - 1e-10:
                     if counter_right%2 == 0:
                         boundary_flags_list[3][i] = 1
                     else:
@@ -174,6 +176,7 @@ class SoftRobot(Poisson):
             F01.append(np.array(f01.vector()))
             F10.append(np.array(f10.vector()))
             F11.append(np.array(f11.vector()))
+
         # Do not forget to add 1 later
         F00 = np.transpose(np.array(F00)) - 1
         F01 = np.transpose(np.array(F01))

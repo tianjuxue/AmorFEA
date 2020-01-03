@@ -21,7 +21,7 @@ def generate_gaussian_samples(args, pde, num_samps, case_flag):
 
     def RBF_kernel(x1, x2):
         sigma = 1
-        l1 = 0.01
+        l1 = 0.001
         l2 = 5
         d1 = (x1[0] - x2[0])**2
         d2 = (x1[1] - x2[1])**2
@@ -42,32 +42,31 @@ def generate_gaussian_samples(args, pde, num_samps, case_flag):
             kernel_matrix[i][j] = RBF_kernel(coo[i], coo[j])
 
     samples = np.random.multivariate_normal(mean_vector, kernel_matrix, num_samps)
- 
+    save_generated_data(args, case_flag, pde, 'Gaussian', samples)
+    return samples
+
+def generate_uniform_samples(args, pde, num_samps, case_flag):
+    M = pde.num_dofs
+    samples = np.random.uniform(-0.1, 0.1, (num_samps, M))
+    save_generated_data(args, case_flag, pde, 'Uniform', samples)
+    return samples
+
+def generate_multinomial_samples(args, pde, num_samps):
+    M = pde.num_dofs
+    samples = np.random.multinomial(1, [1/M]*M, size=num_samps)
+    save_generated_data(args, case_flag, pde, 'Multi', samples)
+    return samples
+
+def save_generated_data(args, case_flag, pde, distribution, samples):
+    M = pde.num_dofs
     if case_flag == 0:
         save_path = '/linear/'
     elif case_flag == 1:
         save_path = '/nonlinear/'
     else:
         save_path = '/robot/'
-
     np.save(args.root_path + '/' + args.numpy_path + save_path + pde.name +
-            '-Gaussian-' + str(num_samps) + '-' + str(M) + '.npy', samples)
-
-    return samples
-
-def generate_uniform_samples(args, pde, num_samps):
-    M = pde.num_dofs
-    samples = np.random.uniform(-1, 1, (num_samps, M))
-    np.save(args.root_path + '/' + args.numpy_path + '/linear/' + pde.name +
-            '-Uniform-' + str(num_samps) + '-' + str(M) + '.npy', samples)
-    return samples
-
-def generate_multinomial_samples(args, pde, num_samps):
-    M = pde.num_dofs
-    samples = np.random.multinomial(1, [1/M]*M, size=num_samps)
-    np.save(args.root_path + '/' + args.numpy_path + '/' + pde.name +
-            '-Multi-' + str(num_samps) + '-' + str(M) + '.npy', samples)
-    return samples
+            '-' + distribution + '-' + str(samples.shape[0]) + '-' + str(M) + '.npy', samples)
 
 def f1(x1, x2):
     return np.ones_like(x1)
@@ -107,12 +106,13 @@ if __name__ == '__main__':
     case_flag = 2
     if case_flag == 0:
         poisson_square = PoissonSquare(args)
-        samples = generate_uniform_samples(args, poisson_square, 30000)
+        samples = generate_uniform_samples(args, poisson_square, 30000, case_flag)
     elif case_flag == 1:
         poisson_trapezoid = PoissonTrapezoid(args)
         samples = generate_gaussian_samples(args, poisson_trapezoid, 3000, case_flag)
     else:
         soft_robot = SoftRobot(args)
-        samples = generate_gaussian_samples(args, soft_robot, 3000, case_flag)
+        # samples = generate_gaussian_samples(args, soft_robot, 3000, case_flag)
+        samples = generate_uniform_samples(args, soft_robot, 30000, case_flag)
 
     scalar_field_paraview(args, samples[2], soft_robot, 'debug_source')

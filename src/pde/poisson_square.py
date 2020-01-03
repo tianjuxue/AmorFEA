@@ -15,8 +15,8 @@ class PoissonSquare(Poisson):
 
     def _build_mesh(self):
         args = self.args
-        # mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
-        mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3)
+        mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
+        # mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3)
         self.mesh = mesh
 
     def _build_function_space(self):
@@ -80,6 +80,27 @@ class PoissonSquare(Poisson):
     def set_control_variable(self, dof_data):
         self.source = fa.Function(self.V)
         self.source.vector()[:] = dof_data
+
+    # Constitutive relationships
+    def _energy_density(self, u):
+        # variational energy density of u
+        # energy = 0.5*self.medium*fa.dot(fa.grad(u), fa.grad(u)) - u*self.source
+        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) - u*self.source
+        return energy
+
+    def energy(self, u):
+        return fa.assemble(self._energy_density(u) * fa.dx)
+
+    def solve_problem_variational_form(self):
+        u = fa.Function(self.V)
+        du = fa.TrialFunction(self.V)
+        v = fa.TestFunction(self.V)
+        E = self._energy_density(u)*fa.dx
+        dE = fa.derivative(E, u, v)
+        jacE = fa.derivative(dE, u, du) 
+        fa.solve(dE == 0, u, self.bcs, J=jacE)
+        return u
+
 
     def solve_problem_weak_form(self):
         u = fa.Function(self.V)      
