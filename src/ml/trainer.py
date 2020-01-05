@@ -106,11 +106,18 @@ class Trainer(object):
         return mean_L2_error
 
 
-# # '''Helpers'''
+'''Helpers'''
 def batch_mat_vec(sparse_matrix, vector_batch):
-    # sparse_matrix: (k, n)
-    # vector_batch: (b, n)
-    # want to do batch multiplication and return (b, k)
+    """Supports batch matrix-vector multiplication for both sparse matrix and dense matrix.
+
+    Args:
+        sparse_matrix: torch tensor (k, n). Can be sparse or dense.
+        vector_batch: torch tensor (b, n).
+
+    Returns:
+        vector_batch: torch tensor (b, k)
+
+    """
 
     # (b, n) -> (n, b)
     matrices = vector_batch.transpose(0, 1)

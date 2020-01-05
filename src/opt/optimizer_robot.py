@@ -15,8 +15,8 @@ class Optimizer(object):
 class RobotOptimizer(Optimizer):
     def __init__(self, args):
         super(RobotOptimizer, self).__init__(args)
-        self.target_x1 = -1
-        self.target_x2 = -0.5
+        self.target_x1 = -0
+        self.target_x2 = -2
 
     def _objective(self, x):
 
@@ -41,8 +41,8 @@ class RobotOptimizer(Optimizer):
 if __name__ == '__main__':
     args = arguments.args
 
-    trainer_robot = TrainerRobot(args)
-    path = args.root_path + '/' + args.model_path + '/robot/model_' + str(0)
+    trainer_robot = TrainerRobot(args, opt=True)
+    path = args.root_path + '/' + args.model_path + '/robot/model_s'
     model = RobotNetwork(args, trainer_robot.graph_info)
     model.load_state_dict(torch.load(path))
 
@@ -58,9 +58,11 @@ if __name__ == '__main__':
                        callback=robot_optimizer._call_back,
                        options=options)
 
-  
     source = torch.tensor(res.x, dtype=torch.float).unsqueeze(0)
     solution = model(source)
     scalar_field_paraview(args, solution.data.numpy().flatten(), trainer_robot.poisson, "this")
+
+    np.save('tmp.npy', res.x)
+    print(res.x)
 
     # CG > BFGS > Newton-CG

@@ -134,64 +134,72 @@ class RobotNetwork(nn.Module):
                                   nn.Sigmoid())
 
         self.fcc2 = nn.Sequential(nn.Linear(self.shapes[0], self.shapes[1], bias=True))
-        # self.fcc2 = nn.Sequential(nn.Linear(self.shapes[0], self.shapes[1], bias=True))
+                                                  
         self.reset_parameters()
 
     def reset_parameters(self):
+        #TODO(Tianju): We don't need distributions here
         for i, layer in enumerate(self.fcc1):
             if i%2 == 0:
-                layer.weight.data.uniform_(-0.0, 0.0)
-                layer.bias.data.uniform_(-0.0, 0.0)
+                layer.weight.data[:] = 0
+                layer.bias.data[:] = 0
 
         for i, layer in enumerate(self.fcc2):
             if i%2 == 0:
-                layer.weight.data.uniform_(-0.0, 0.0)
-                layer.bias.data.uniform_(-0.0, 0.0)
-
-    def constrain(self, x):
-        half_size = x.shape[1]//2
-        angles = 0.5*np.pi + 0.5*np.pi*2*(self.fcc1(x) - 0.5)
-        ratio = 1 + (torch.sigmoid(x) - 0.5)
-
-        new_rods_left = ratio[:, :half_size] * self.joints[0]
-        new_rods_right = ratio[:, half_size:] * self.joints[1]
-
-        new_rods_left = new_rods_left.unsqueeze(1).repeat(1, new_rods_left.shape[1], 1).triu()
-        new_rods_right = new_rods_right.unsqueeze(1).repeat(1, new_rods_right.shape[1], 1).triu()
-
-        cos_angle_left = torch.cos(angles[:, :half_size]).unsqueeze(2)
-        sin_angle_left = torch.sin(angles[:, :half_size]).unsqueeze(2)
-        cos_angle_right = torch.cos(angles[:, half_size:]).unsqueeze(2)
-        sin_angle_right = torch.sin(angles[:, half_size:]).unsqueeze(2)
-
-        lx_u = torch.matmul(new_rods_left, cos_angle_left).squeeze(2) + self.coo_diff[0]
-        ly_u = torch.matmul(new_rods_left, sin_angle_left).squeeze(2) + self.coo_diff[1]
-        rx_u = torch.matmul(new_rods_right, cos_angle_right).squeeze(2) + self.coo_diff[2]
-        ry_u =  torch.matmul(new_rods_right, sin_angle_right).squeeze(2) + self.coo_diff[3]
-        bc_u = torch.cat([lx_u, ly_u, rx_u, ry_u], dim=1)
-
-        lx_u = batch_mat_vec(self.mat_list[1].transpose(0, 1), lx_u)
-        ly_u = batch_mat_vec(self.mat_list[2].transpose(0, 1), ly_u)
-        rx_u = batch_mat_vec(self.mat_list[3].transpose(0, 1), rx_u)
-        ry_u = batch_mat_vec(self.mat_list[4].transpose(0, 1), ry_u)
-
-        return lx_u, ly_u, rx_u, ry_u, bc_u
+                layer.weight.data[:] = 0
+                layer.bias.data[:] = 0
 
     def forward(self, x):
-        lx_u, ly_u, rx_u, ry_u, bc_u = self.constrain(x)
+        angles = 0.5*np.pi + 0.5*np.pi*2*(self.fcc1(x) - 0.5)
+        lx_u, ly_u, rx_u, ry_u, bc_u = constrain(x, self.mat_list, self.coo_diff, 
+                                                 self.joints, angles)
         int_u = self.fcc2(bc_u)
         int_u = batch_mat_vec(self.mat_list[-1].transpose(0, 1), int_u)
         u = lx_u + ly_u + rx_u + ry_u + int_u
         return u
 
 
-# test = torch.sqrt(tmp1[0][0]**2 + tmp2[0][0]**2)
-# print(test.data.numpy())
+class RobotSolver(nn.Module):
+    def __init__(self, args, graph_info):
+        super(RobotSolver, self).__init__()
+        self.args = args
+        self.mat_list, self.joints, self.coo_diff, self.shapes = graph_info
+        self.para_angles = Parameter(torch.zeros(self.shapes[0]//2) + 0.5*np.pi )
+        self.para_disp = Parameter(torch.zeros(self.shapes[1]))
 
-# print(cos_angle_left[0])
-# print(sin_angle_left[0])
-# print(cos_angle_right[0])
-# print(sin_angle_right[0])
-# # tmp1 = torch.matmul(new_rods_left, cos_angle_left).squeeze(2) + self.coo_diff[0]
-# # tmp2 = torch.matmul(new_rods_left, sin_angle_left).squeeze(2) + self.coo_diff[1]
-# exit()
+    def forward(self, x):
+        lx_u, ly_u, rx_u, ry_u, bc_u = constrain(x, self.mat_list, self.coo_diff, 
+                                                 self.joints, self.para_angles.unsqueeze(0))
+        int_u = batch_mat_vec(self.mat_list[-1].transpose(0, 1), self.para_disp.unsqueeze(0))
+        u = lx_u + ly_u + rx_u + ry_u + int_u
+        return u
+
+
+'''Commonly used functions'''
+def constrain(x, mat_list, coo_diff, joints, angles): 
+    half_size = x.shape[1]//2
+    ratio = 1 + (torch.sigmoid(x) - 0.5)
+
+    new_rods_left = ratio[:, :half_size] * joints[0]
+    new_rods_right = ratio[:, half_size:] * joints[1]
+
+    new_rods_left = new_rods_left.unsqueeze(1).repeat(1, new_rods_left.shape[1], 1).triu()
+    new_rods_right = new_rods_right.unsqueeze(1).repeat(1, new_rods_right.shape[1], 1).triu()
+
+    cos_angle_left = torch.cos(angles[:, :half_size]).unsqueeze(2)
+    sin_angle_left = torch.sin(angles[:, :half_size]).unsqueeze(2)
+    cos_angle_right = torch.cos(angles[:, half_size:]).unsqueeze(2)
+    sin_angle_right = torch.sin(angles[:, half_size:]).unsqueeze(2)
+
+    lx_u = torch.matmul(new_rods_left, cos_angle_left).squeeze(2) + coo_diff[0]
+    ly_u = torch.matmul(new_rods_left, sin_angle_left).squeeze(2) + coo_diff[1]
+    rx_u = torch.matmul(new_rods_right, cos_angle_right).squeeze(2) + coo_diff[2]
+    ry_u =  torch.matmul(new_rods_right, sin_angle_right).squeeze(2) + coo_diff[3]
+    bc_u = torch.cat([lx_u, ly_u, rx_u, ry_u], dim=1)
+
+    lx_u = batch_mat_vec(mat_list[1].transpose(0, 1), lx_u)
+    ly_u = batch_mat_vec(mat_list[2].transpose(0, 1), ly_u)
+    rx_u = batch_mat_vec(mat_list[3].transpose(0, 1), rx_u)
+    ry_u = batch_mat_vec(mat_list[4].transpose(0, 1), ry_u)
+
+    return lx_u, ly_u, rx_u, ry_u, bc_u

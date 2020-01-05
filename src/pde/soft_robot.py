@@ -71,17 +71,12 @@ class SoftRobot(Poisson):
 
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
-
-        # self.source = fa.Expression(("1 + 0.1*x[1]"),  degree=1)
-        # self.source = fa.Constant(1.)
-
         self.bcs = [ self.bottom]
 
         boundaries = [self.bottom, self.left, self.right]
         boundary_fn = [fa.Constant((0., 0.)),
-                       fa.Expression(("0", ".3808*x[1]"), degree=1),
-                       fa.Expression(("0", ".3808*x[1]"), degree=1)]
-
+                       fa.Expression(("0", ".1*x[1]"), degree=1),
+                       fa.Expression(("0", ".1*x[1]"), degree=1)]
         self.bcs = []
         for i in range(len(boundaries)):
             boundary_bc = fa.DirichletBC(self.V, boundary_fn[i], boundaries[i])
@@ -140,9 +135,11 @@ class SoftRobot(Poisson):
                   (bulk_mod / 2) * (J - 1)**2)  
         return energy
 
-    def set_control_variable(self, dof_data):
-        self.source = fa.Function(self.W)
-        self.source.vector()[:] = dof_data
+    def check_energy(self, dof_data):
+        u = fa.Function(self.V)
+        u.vector()[:] = dof_data
+        energy = self.energy(u)
+        print(energy)
 
     def energy(self, u):
         return fa.assemble(self._energy_density(u) * fa.dx)
