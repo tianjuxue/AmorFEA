@@ -133,12 +133,10 @@ class RobotNetwork(nn.Module):
         self.fcc1 = nn.Sequential(nn.Linear(args.input_size, args.input_size, bias=True),
                                   nn.Sigmoid())
 
-        self.fcc2 = nn.Sequential(nn.Linear(self.shapes[0], self.shapes[1], bias=True))
-                                                  
+        self.fcc2 = nn.Sequential(nn.Linear(self.shapes[0], self.shapes[1], bias=True))                                                  
         self.reset_parameters()
 
     def reset_parameters(self):
-        #TODO(Tianju): We don't need distributions here
         for i, layer in enumerate(self.fcc1):
             if i%2 == 0:
                 layer.weight.data[:] = 0
@@ -149,11 +147,18 @@ class RobotNetwork(nn.Module):
                 layer.weight.data[:] = 0
                 layer.bias.data[:] = 0
 
-    def forward(self, x):
-        angles = 0.5*np.pi + 0.5*np.pi*2*(self.fcc1(x) - 0.5)
+    def get_angles(self, x):
+        return 0.5*np.pi + 0.5*np.pi*2*(self.fcc1(x) - 0.5)
+
+    def get_disp(self, x):
+        angles = self.get_angles(x)
         lx_u, ly_u, rx_u, ry_u, bc_u = constrain(x, self.mat_list, self.coo_diff, 
                                                  self.joints, angles)
         int_u = self.fcc2(bc_u)
+        return [lx_u, ly_u, rx_u, ry_u, bc_u], int_u
+
+    def forward(self, x):
+        [lx_u, ly_u, rx_u, ry_u, bc_u], int_u = self.get_disp(x)
         int_u = batch_mat_vec(self.mat_list[-1].transpose(0, 1), int_u)
         u = lx_u + ly_u + rx_u + ry_u + int_u
         return u
@@ -164,8 +169,14 @@ class RobotSolver(nn.Module):
         super(RobotSolver, self).__init__()
         self.args = args
         self.mat_list, self.joints, self.coo_diff, self.shapes = graph_info
-        self.para_angles = Parameter(torch.zeros(self.shapes[0]//2) + 0.5*np.pi )
+        self.para_angles = Parameter(torch.zeros(self.shapes[0]//2) + 0.5*np.pi)
         self.para_disp = Parameter(torch.zeros(self.shapes[1]))
+
+    def reset_parameters(self, source, robot_network):
+        angles = robot_network.get_angles(source)
+        self.para_angles.data = angles.squeeze()
+        _, int_u = robot_network.get_disp(source)
+        self.para_disp.data = int_u.squeeze()
 
     def forward(self, x):
         lx_u, ly_u, rx_u, ry_u, bc_u = constrain(x, self.mat_list, self.coo_diff, 

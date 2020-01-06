@@ -46,7 +46,6 @@ def scalar_field_3D(attribute, graph):
     ax.set_ylim3d(-1, 2)
     ax.set_zlim3d(-0.5, 0.5)
  
-
 def scalar_field_2D(attribute, graph):
     max_att = np.max(attribute)
     min_att = np.min(attribute)

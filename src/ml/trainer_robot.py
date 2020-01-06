@@ -94,7 +94,7 @@ class TrainerRobot(Trainer):
         self.F11 = torch.tensor(F11).float().to_sparse()
         self.weight_area = torch.tensor(self.poisson.compute_areas()).float()
 
-        # PyTorch currently has poor support for sparse matrix (like batch operations)
+        # PyTorch currently has not enough support for sparse matrix (like batch operations)
         # It seems that sparse matrix works fine with SGD but fails for autograd
         # with certain operations. Still looking into this issue.
         # see https://github.com/pytorch/pytorch/issues/9674
@@ -131,10 +131,6 @@ class TrainerRobot(Trainer):
         # left_data[:left_data.shape[0]//2, :] = -0.1
         # right_data[:right_data.shape[0]//2, :] = 0.1
         self.data_X = np.concatenate((left_data, right_data), axis=1)
-
-        # tmp = np.load('tmp.npy')
-        # self.data_X[:] = tmp
-        
         self.train_loader, self.test_loader = self.shuffle_data()
         self.model = RobotNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_ss'))
@@ -148,10 +144,10 @@ class TrainerRobot(Trainer):
             recon_batch = self.model(self.fem_test)
             scalar_field_paraview(self.args, recon_batch[0].data.numpy(), self.poisson, "nn")
             print('\n')
-            torch.save(self.model.state_dict(), self.args.root_path + '/' + self.args.model_path + '/robot/model_' + str(0))
+            # torch.save(self.model.state_dict(), self.args.root_path + '/' + self.args.model_path + '/robot/model_' + str(0))
 
 
-    def forward_prediction(self, source):
+    def forward_prediction(self, source, model=None):
         """Serves as ground truth computation
 
         Args:
@@ -161,25 +157,35 @@ class TrainerRobot(Trainer):
         # source = np.repeat(np.expand_dims(source, axis=0), 3000, axis=0)
         source = np.expand_dims(source, axis=0)
         source = torch.tensor(source, dtype=torch.float)
-        model = RobotSolver(self.args, self.graph_info)
+        solver = RobotSolver(self.args, self.graph_info)
         # Load pre-trained network for better convergence
-        # model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/solver'))       
-        # optimizer = optim.Adam(model.parameters(), lr=1e-2)
-        optimizer = optim.LBFGS(model.parameters(), lr=1e-1, max_iter=20, history_size=100)
-        for epoch in range(30):
+        # model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/solver')) 
+
+        if model is not None:
+            solver.reset_parameters(source, model)
+
+        # optimizer = optim.Adam(solver.parameters(), lr=1e-2)
+        optimizer = optim.LBFGS(solver.parameters(), lr=1e-1, max_iter=20, history_size=100)
+        max_epoch = 1000
+        tol = 1e-10
+        loss_pre, loss_crt = 0, 0
+        for epoch in range(max_epoch):
             def closure():
                 optimizer.zero_grad()
-                solution = model(source)
+                solution = solver(source)
                 loss = self.loss_function(source, solution)
                 loss.backward()
                 return loss
             optimizer.zero_grad()
-            solution = model(source)
+            solution = solver(source)
             loss = self.loss_function(source, solution)
-            print("loss is", loss.item())
+            print("Optimization for ground truth, loss is", loss.data.numpy())
             loss.backward()
             optimizer.step(closure)
-            scalar_field_paraview(self.args, solution[0].data.numpy(), self.poisson, "gt")
+            loss_pre = loss_crt
+            loss_crt = loss.data.numpy()
+            if (loss_pre - loss_crt)**2 < tol:
+                break
 
         return solution[0].data.numpy()
 
@@ -187,12 +193,12 @@ class TrainerRobot(Trainer):
     def debug(self):       
         left_data = 0.1*np.ones(self.args.input_size//2)
         right_data = -0.1*np.ones(self.args.input_size//2)
-        left_data[len(left_data)//2:] = -0.1
-        right_data[len(right_data)//2:] = 0.1
+        # left_data[len(left_data)//2:] = -0.1
+        # right_data[len(right_data)//2:] = 0.1
 
         source = np.concatenate((left_data, right_data))
         solution = self.forward_prediction(source)
-        # self.poisson.check_energy(solution)
+        scalar_field_paraview(self.args, solution, self.poisson, "gt")
 
         self.model = RobotNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_sss'))
@@ -206,4 +212,4 @@ class TrainerRobot(Trainer):
 if __name__ == "__main__":
     args = arguments.args
     trainer = TrainerRobot(args)
-    trainer.debug()
+    trainer.run()
