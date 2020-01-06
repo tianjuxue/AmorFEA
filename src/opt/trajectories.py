@@ -24,7 +24,7 @@ def plot_hs():
     # plt.xlabel('xlabel')
     # plt.ylabel('ylabel')
     # plt.legend(loc='upper left')
-    plt.plot(x - x[0], y - y[0])
+    plt.plot(x, y)
 
 
 if __name__ == "__main__":
