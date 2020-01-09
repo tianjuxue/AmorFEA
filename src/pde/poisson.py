@@ -81,7 +81,8 @@ class Poisson(object):
                         weight_area[index] += self._cell_area(cell)
         return 1./3.*weight_area
 
-    def solve_problem_weak_form(self):
-        raise NotImplementedError()
-
+    def save_mesh(self):
+        file = fa.File(self.args.root_path + '/' + self.args.solutions_path + '/mesh.pvd')
+        self.mesh.rename('mesh', 'mesh')
+        file << self.mesh
 

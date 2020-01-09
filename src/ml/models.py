@@ -23,6 +23,30 @@ class LinearRegressor(nn.Module):
         return x
 
 
+
+# class TensorNet(nn.Module):
+#     def __init__(self, args, graph_info):
+#         super(TensorNet, self).__init__()
+#         self.args = args
+#         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
+
+#         self.weight = Parameter(torch.FloatTensor(in_features, out_features))
+        
+
+#         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
+#                                  nn.SELU(), 
+#                                  nn.Linear(args.input_size, args.input_size))
+#         # initialize_parameters([self.fcc], True)
+
+#     def forward(self, x):
+#         x = batch_mat_vec(self.B_sp, x)
+#         x = torch.addcmul(self.bc_value, x, self.interior_flag)
+#         x = self.fcc(x)
+#         x = torch.addcmul(self.bc_value, x, self.interior_flag)
+#         return x
+
+
+
 class MLP(nn.Module):
     def __init__(self, args, graph_info):
         super(MLP, self).__init__()
@@ -30,9 +54,8 @@ class MLP(nn.Module):
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
-                                 nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size))
+        # initialize_parameters([self.fcc], True)
 
     def forward(self, x):
         x = batch_mat_vec(self.B_sp, x)
@@ -43,26 +66,21 @@ class MLP(nn.Module):
 
 
 class GraphConvolution(Module):
-    """
-    Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
-    """
-    def __init__(self, in_features, out_features, bias=False):
+    '''
+    Simple GCN layer, adapted from https://arxiv.org/abs/1609.02907
+    '''
+    def __init__(self, in_features, out_features, bias=True):
         super(GraphConvolution, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
 
         self.weight = Parameter(torch.FloatTensor(in_features, out_features))
+        self.weight.data[:] = 0
         if bias:
             self.bias = Parameter(torch.FloatTensor(out_features))
+            self.bias.data[:] = 0
         else:
             self.register_parameter('bias', None)
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight.size(1))
-        self.weight.data.uniform_(-stdv, stdv)
-        if self.bias is not None:
-            self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input, adj):
         support = torch.matmul(input, self.weight)
@@ -85,13 +103,13 @@ class MixedNetwork(nn.Module):
         self.gc1 = GraphConvolution(1, 20)
         self.gc2 = GraphConvolution(20, 1)
 
-        self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(), 
-                                 nn.Linear(args.input_size, args.input_size))
+        self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size))
+        # initialize_parameters([self.fcc], True)
 
     def forward(self, x):
         x = batch_mat_vec(self.B_sp, x)
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
+
 
         x = x.unsqueeze(2)
         x = F.selu(self.gc1(x, self.adj))
@@ -99,27 +117,6 @@ class MixedNetwork(nn.Module):
         x = x.squeeze()
 
         x = self.fcc(x)  
-        x = torch.addcmul(self.bc_value, x, self.interior_flag)
-
-        return x
-
-
-class GCN(nn.Module):
-    def __init__(self, args, graph_info):
-        super(GCN, self).__init__()
-        self.args = args
-        self.bc_value, self.interior_flag, self.adj, self.B_sp = graph_info
-        self.gc1 = GraphConvolution(1, 20)
-        self.gc2 = GraphConvolution(20, 1)
-
-    def forward(self, x):
-        x = batch_mat_vec(self.B_sp, x)
-        x = torch.addcmul(self.bc_value, x, self.interior_flag)
-
-        x = x.unsqueeze(2)
-        x = F.selu(self.gc1(x, self.adj))
-        x = F.selu(self.gc2(x, self.adj))
-        x = x.squeeze()
 
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x
@@ -134,18 +131,8 @@ class RobotNetwork(nn.Module):
                                   nn.Sigmoid())
 
         self.fcc2 = nn.Sequential(nn.Linear(self.shapes[0], self.shapes[1], bias=True))                                                  
-        self.reset_parameters()
+        initialize_parameters([self.fcc1, self.fcc2], True)
 
-    def reset_parameters(self):
-        for i, layer in enumerate(self.fcc1):
-            if i%2 == 0:
-                layer.weight.data[:] = 0
-                layer.bias.data[:] = 0
-
-        for i, layer in enumerate(self.fcc2):
-            if i%2 == 0:
-                layer.weight.data[:] = 0
-                layer.bias.data[:] = 0
 
     def get_angles(self, x):
         return 0.5*np.pi + 0.5*np.pi*2*(self.fcc1(x) - 0.5)
@@ -214,3 +201,12 @@ def constrain(x, mat_list, coo_diff, joints, angles):
     ry_u = batch_mat_vec(mat_list[4].transpose(0, 1), ry_u)
 
     return lx_u, ly_u, rx_u, ry_u, bc_u
+
+
+def initialize_parameters(layers, bias_flag):
+    for fcc in layers:
+        for i, layer in enumerate(fcc):
+            if i%2 == 0:
+                layer.weight.data[:] = 0
+                if bias_flag:
+                    layer.bias.data[:] = 0

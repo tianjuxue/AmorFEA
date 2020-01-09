@@ -4,29 +4,31 @@ from .. import arguments
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D, get_test_data
 from matplotlib import cm
-from ..graph.visualization import *
-from ..pde.poisson_square import PoissonSquare
-from ..pde.poisson_trapezoid import PoissonTrapezoid
-from ..pde.soft_robot import SoftRobot
+from ..graph.visualization import scalar_field_paraview
+from ..pde.poisson_linear import PoissonLinear
+from ..pde.poisson_dolfin import PoissonDolfin
+from ..pde.poisson_robot import PoissonRobot
 
 
 def generate_gaussian_samples(args, pde, num_samps, case_flag):
 
-    # TODO(Tianju): Make this general
-    # def RBF_kernel(x1, x2):
-    #     sigma = 1
-    #     l = 0.5
-    #     k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
-    #     return k
-
-    def RBF_kernel(x1, x2):
-        sigma = 1
-        l1 = 0.001
-        l2 = 5
-        d1 = (x1[0] - x2[0])**2
-        d2 = (x1[1] - x2[1])**2
-        k = sigma**2 * np.exp( -d1/(2*l1**2) - d2/(2*l2**2))
-        return k
+    if case_flag == 1:
+        def RBF_kernel(x1, x2):
+            sigma = 5
+            l = 0.1
+            k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
+            return k
+    elif case_flag == 2:
+        def RBF_kernel(x1, x2):
+            sigma = 1
+            l1 = 0.001
+            l2 = 5
+            d1 = (x1[0] - x2[0])**2
+            d2 = (x1[1] - x2[1])**2
+            k = sigma**2 * np.exp( -d1/(2*l1**2) - d2/(2*l2**2))
+            return k
+    else:
+        raise NotImplementedError()
 
     def mean(x):
         return 0.
@@ -42,31 +44,24 @@ def generate_gaussian_samples(args, pde, num_samps, case_flag):
             kernel_matrix[i][j] = RBF_kernel(coo[i], coo[j])
 
     samples = np.random.multivariate_normal(mean_vector, kernel_matrix, num_samps)
-    save_generated_data(args, case_flag, pde, 'Gaussian', samples)
+    save_generated_data(args, pde, 'Gaussian', samples)
     return samples
 
 def generate_uniform_samples(args, pde, num_samps, case_flag):
     M = pde.num_dofs
     samples = np.random.uniform(-0.1, 0.1, (num_samps, M))
-    save_generated_data(args, case_flag, pde, 'Uniform', samples)
+    save_generated_data(args, pde, 'Uniform', samples)
     return samples
 
 def generate_multinomial_samples(args, pde, num_samps):
     M = pde.num_dofs
     samples = np.random.multinomial(1, [1/M]*M, size=num_samps)
-    save_generated_data(args, case_flag, pde, 'Multi', samples)
+    save_generated_data(args, pde, 'Multi', samples)
     return samples
 
-def save_generated_data(args, case_flag, pde, distribution, samples):
-    M = pde.num_dofs
-    if case_flag == 0:
-        save_path = '/linear/'
-    elif case_flag == 1:
-        save_path = '/nonlinear/'
-    else:
-        save_path = '/robot/'
-    np.save(args.root_path + '/' + args.numpy_path + save_path + pde.name +
-            '-' + distribution + '-' + str(samples.shape[0]) + '-' + str(M) + '.npy', samples)
+def save_generated_data(args, pde, distribution, samples):
+    np.save(args.root_path + '/' + args.numpy_path + '/' + pde.name + '/' +  distribution + 
+            '-' + str(samples.shape[0]) + '-' + str(pde.num_dofs) + '.npy', samples)
 
 def f1(x1, x2):
     return np.ones_like(x1)
@@ -103,16 +98,16 @@ def linear_visual(args, graph):
 
 if __name__ == '__main__':
     args = arguments.args
-    case_flag = 2
+    case_flag = 1
     if case_flag == 0:
-        poisson_square = PoissonSquare(args)
-        samples = generate_uniform_samples(args, poisson_square, 30000, case_flag)
+        poisson_linear = PoissonLinear(args)
+        samples = generate_uniform_samples(args, poisson_linear, 30000, case_flag)
     elif case_flag == 1:
-        poisson_trapezoid = PoissonTrapezoid(args)
-        samples = generate_gaussian_samples(args, poisson_trapezoid, 3000, case_flag)
+        poisson_dolfin = PoissonDolfin(args)
+        samples = generate_gaussian_samples(args, poisson_dolfin, 30000, case_flag)
     else:
-        soft_robot = SoftRobot(args)
-        # samples = generate_gaussian_samples(args, soft_robot, 3000, case_flag)
-        samples = generate_uniform_samples(args, soft_robot, 30000, case_flag)
+        poisson_robot = PoissonRobot(args)
+        # samples = generate_gaussian_samples(args, poisson_robot, 3000, case_flag)
+        samples = generate_uniform_samples(args, poisson_robot, 30000, case_flag)
 
-    scalar_field_paraview(args, samples[2], soft_robot, 'debug_source')
+    scalar_field_paraview(args, samples[2], poisson_dolfin, 'debug_source')

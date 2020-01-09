@@ -37,4 +37,4 @@ Generally follow pep8.
 # Todo
 - From linear problems to non-linear problems
 - More complicated boundary conditions (both Dirirchlet and Neumann conditions imposed weakly in the form of penalty terms in loss functions). Can be input if needed.
-- Test on a real plasma asccosicated problem
+- Change the name to linear, dolfin, robot

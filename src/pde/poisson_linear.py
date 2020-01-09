@@ -8,9 +8,9 @@ from .poisson import Poisson
 from .. import arguments
 
 
-class PoissonSquare(Poisson):
+class PoissonLinear(Poisson):
     def __init__(self, args):
-        super(PoissonSquare, self).__init__(args)
+        super(PoissonLinear, self).__init__(args)
         self.name = 'square'
 
     def _build_mesh(self):
@@ -48,7 +48,6 @@ class PoissonSquare(Poisson):
         self.exterior = Exterior()
         
         self.V = fa.FunctionSpace(self.mesh, 'P', 1)
-
         self.sub_domains = fa.MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
         self.sub_domains.set_all(0)
 
@@ -65,7 +64,7 @@ class PoissonSquare(Poisson):
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
 
-        self.source = fa.Expression(("sin(2*pi/x[0])"),  degree=3)
+        self.source = fa.Expression(("sin(2*pi*x[0])"),  degree=3)
         self.source = fa.Constant(1.)
 
         self.bcs = []
@@ -128,7 +127,6 @@ class PoissonSquare(Poisson):
         u = fa.Function(self.V)
         U = u.vector()
         fa.solve(A, U, b)
- 
         return u
 
     def compute_operators(self):
@@ -159,7 +157,7 @@ class PoissonSquare(Poisson):
 
 if __name__ == '__main__':
     args = arguments.args
-    pde = PoissonSquare(args)
+    pde = PoissonLinear(args)
     # u = pde.solve_problem_weak_form_explicit()
     # file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
     # u.rename('u', 'u')

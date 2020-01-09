@@ -8,9 +8,9 @@ from .poisson import Poisson
 from .. import arguments
 
 
-class SoftRobot(Poisson):
+class PoissonRobot(Poisson):
     def __init__(self, args):
-        super(SoftRobot, self).__init__(args)
+        super(PoissonRobot, self).__init__(args)
         self.name = 'robot'
 
     def _build_mesh(self):
@@ -203,7 +203,7 @@ class SoftRobot(Poisson):
 
 if __name__ == '__main__':
     args = arguments.args
-    pde = SoftRobot(args)
+    pde = PoissonRobot(args)
 
     u = pde.solve_problem_variational_form()
     print(pde.energy(u))

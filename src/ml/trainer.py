@@ -138,8 +138,7 @@ def normalize_adj(A):
     D = np.diag(D**(-0.5))
     A_normalized = np.matmul(np.matmul(D, A), D)
     A_normalized = torch.tensor(A_normalized).float()
-    A_sp = A_normalized.to_sparse()
-    return A_sp
+    return A_normalized.to_sparse()
     # return torch.tensor(A).float().to_sparse() 
 
 def boundary_flag_matrix(boundary_flag):
