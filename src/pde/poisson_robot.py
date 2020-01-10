@@ -6,6 +6,7 @@ import mshr
 import fenics as fa
 from .poisson import Poisson
 from .. import arguments
+from ..graph.visualization import scalar_field_paraview, save_solution
 
 
 class PoissonRobot(Poisson):
@@ -19,10 +20,6 @@ class PoissonRobot(Poisson):
         # mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
         mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(self.width, 10), 2, 20, 'crossed')
         self.mesh = mesh
-
-        # file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
-        # mesh.rename('mesh', 'mesh')
-        # file << mesh
 
     def _build_function_space(self):
         width = self.width
@@ -207,6 +204,4 @@ if __name__ == '__main__':
 
     u = pde.solve_problem_variational_form()
     print(pde.energy(u))
-    file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
-    u.rename('u', 'u')
-    file << u
+    save_solution(args, u, 'u')

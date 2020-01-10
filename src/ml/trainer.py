@@ -142,8 +142,9 @@ def normalize_adj(A):
     # return torch.tensor(A).float().to_sparse() 
 
 def boundary_flag_matrix(boundary_flag):
-    # something like [0,0,1,1,0] to
-    # [[0,0,1,0,0], [0,0,0,1,0]]
+    """something like [0,0,1,1,0] to [[0,0,1,0,0], [0,0,0,1,0]]
+    """
+
     bc_mat = []
     for i, number in enumerate(boundary_flag):
         if number == 1:

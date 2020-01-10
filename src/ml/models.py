@@ -13,38 +13,39 @@ class LinearRegressor(nn.Module):
         super(LinearRegressor, self).__init__()
         self.args = args
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
-        self.fc = nn.Linear(args.input_size, args.input_size, bias=False)
+        self.fcc = nn.Linear(args.input_size, args.input_size, bias=False)
 
     def forward(self, x):
         x = batch_mat_vec(self.B_sp, x)
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
-        x = self.fc(x)
+        x = self.fcc(x)
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
         return x
 
 
+class TensorNet(nn.Module):
+    def __init__(self, args, graph_info):
+        super(TensorNet, self).__init__()
+        self.args = args
+        self.bc_value, self.interior_flag, _, self.B_sp = graph_info
 
-# class TensorNet(nn.Module):
-#     def __init__(self, args, graph_info):
-#         super(TensorNet, self).__init__()
-#         self.args = args
-#         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
-
-#         self.weight = Parameter(torch.FloatTensor(in_features, out_features))
+        self.weight1 = Parameter(torch.zeros(3, args.input_size, args.input_size))
+        self.weight2 = Parameter(torch.ones(args.input_size, 3))
         
+    def tensor_fcc(self, x):
+        x = torch.matmul(self.weight1, x.transpose(0, 1))
+        x = x.transpose(0, 2)
+        x = F.selu(x)
+        x = x*self.weight2
+        x = x.sum(dim=2)
+        return x
 
-#         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-#                                  nn.SELU(), 
-#                                  nn.Linear(args.input_size, args.input_size))
-#         # initialize_parameters([self.fcc], True)
-
-#     def forward(self, x):
-#         x = batch_mat_vec(self.B_sp, x)
-#         x = torch.addcmul(self.bc_value, x, self.interior_flag)
-#         x = self.fcc(x)
-#         x = torch.addcmul(self.bc_value, x, self.interior_flag)
-#         return x
-
+    def forward(self, x):
+        x = batch_mat_vec(self.B_sp, x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
+        x = self.tensor_fcc(x)
+        x = torch.addcmul(self.bc_value, x, self.interior_flag)
+        return x
 
 
 class MLP(nn.Module):
@@ -74,19 +75,26 @@ class GraphConvolution(Module):
         self.in_features = in_features
         self.out_features = out_features
 
-        self.weight = Parameter(torch.FloatTensor(in_features, out_features))
-        self.weight.data[:] = 0
+        self.weight = Parameter(torch.ones((in_features, out_features)))
+        self.weight.data.uniform_(-0.1, 0.1)
         if bias:
-            self.bias = Parameter(torch.FloatTensor(out_features))
-            self.bias.data[:] = 0
+            self.bias = Parameter(torch.ones(out_features))
+            self.bias.data.uniform_(-0.1, 0.1)
         else:
             self.register_parameter('bias', None)
 
-    def forward(self, input, adj):
-        support = torch.matmul(input, self.weight)
+    def forward(self, features, adj):
+        if self.in_features < self.out_features:
+            tmp = batch_mat_mat(adj, features)
+            output = torch.matmul(tmp, self.weight)
+        else:
+            tmp = torch.matmul(features, self.weight)
+            output = batch_mat_mat(adj, tmp)
 
-        output = batch_mat_mat(adj, support)
-        # output = torch.spmm(adj, support)
+        # Currently torch.spmm doesn't support batch matmul between 
+        # a sparse matrix and a batch of dense matrices.
+        # The following line won't work for now.
+        # output = torch.spmm(sparse_matrix, dense_matrix)
 
         if self.bias is not None:
             return output + self.bias
@@ -100,16 +108,17 @@ class MixedNetwork(nn.Module):
         self.args = args
         self.bc_value, self.interior_flag, self.adj, self.B_sp = graph_info
 
-        self.gc1 = GraphConvolution(1, 20)
-        self.gc2 = GraphConvolution(20, 1)
+        self.gc1 = GraphConvolution(1, 10)
+        self.gc2 = GraphConvolution(10, 1)
 
-        self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size))
+        self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
+                                 nn.SELU(), 
+                                 nn.Linear(args.input_size, args.input_size))
         # initialize_parameters([self.fcc], True)
 
     def forward(self, x):
         x = batch_mat_vec(self.B_sp, x)
         x = torch.addcmul(self.bc_value, x, self.interior_flag)
-
 
         x = x.unsqueeze(2)
         x = F.selu(self.gc1(x, self.adj))

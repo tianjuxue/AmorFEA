@@ -98,6 +98,7 @@ class TrainerRobot(Trainer):
         # It seems that sparse matrix works fine with SGD but fails for autograd
         # with certain operations. Still looking into this issue.
         # see https://github.com/pytorch/pytorch/issues/9674
+        # TODO(Tianju): Do the if selection in optimizer module
         if self.opt:
             bc_btm_mat = torch.tensor(bc_btm_mat).float()
             bc_lx_mat = torch.tensor(bc_lx_mat).float()
@@ -133,7 +134,8 @@ class TrainerRobot(Trainer):
         self.data_X = np.concatenate((left_data, right_data), axis=1)
         self.train_loader, self.test_loader = self.shuffle_data()
         self.model = RobotNetwork(self.args, self.graph_info)
-        self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_ss'))
+        self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
+                                              self.args.model_path + '/' + self.poisson.name + '/model_sss'))
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-4, max_iter=20, history_size=40)

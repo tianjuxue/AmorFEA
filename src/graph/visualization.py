@@ -6,6 +6,11 @@ from matplotlib.collections import LineCollection
 import fenics as fa
 
 
+def save_solution(args, solution, name):
+    file = fa.File(args.root_path + '/' + args.solutions_path + '/' + name + '.pvd')
+    solution.rename('u', 'u')
+    file << solution
+
 def model_prediction(source, graph, model):
     source /= graph.num_vertices
     boundary = np.zeros(graph.num_vertices)
@@ -17,10 +22,8 @@ def model_prediction(source, graph, model):
 def scalar_field_paraview(args, attribute, pde, name):
     solution = fa.Function(pde.V)
     solution.vector()[:] = attribute
-    file = fa.File(args.root_path + '/' + args.solutions_path + '/' + name + '.pvd')
-    solution.rename('u', 'u')
-    file << solution
-
+    save_solution(args, solution, name)
+ 
 def scalar_field_3D(attribute, graph):
     max_att = np.max(attribute)
     min_att = np.min(attribute)

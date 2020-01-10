@@ -9,7 +9,7 @@ import numpy as np
 import os
 import collections
 from .trainer import Trainer, batch_mat_vec, normalize_adj
-from .models import LinearRegressor, MLP, MixedNetwork
+from .models import LinearRegressor, MLP, MixedNetwork, TensorNet
 from ..pde.poisson_dolfin import PoissonDolfin
 from .. import arguments
 from ..graph.visualization import scalar_field_paraview
@@ -60,9 +60,9 @@ class TrainerDolfin(Trainer):
 
         # Can be much more general
         bc_flag_1 = torch.tensor(self.poisson.boundary_flags_list[0]).float()
-        bc_value_1 = 1.*bc_flag_1
+        bc_value_1 = 0.*bc_flag_1
         bc_flag_2 = torch.tensor(self.poisson.boundary_flags_list[1]).float()
-        bc_value_2 = 1.*bc_flag_2
+        bc_value_2 = 0.*bc_flag_2
         bc_value = bc_value_1 + bc_value_2
         interior_flag = torch.ones(self.poisson.num_vertices) - bc_flag_1 - bc_flag_2
         adjacency_matrix = self.poisson.get_adjacency_matrix()
@@ -73,8 +73,11 @@ class TrainerDolfin(Trainer):
 
 
     def run(self):
-        self.model = MLP(self.args, self.graph_info)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=5*1e-4)
+        self.model = MixedNetwork(self.args, self.graph_info)
+        self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
+                                              self.args.model_path + '/' + self.poisson.name + '/model_0'))
+
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-5)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)
         # self.optimizer = optim.SGD(self.model.parameters(), lr=1e-6, momentum=0.85)
 

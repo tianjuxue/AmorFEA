@@ -14,7 +14,7 @@ def generate_gaussian_samples(args, pde, num_samps, case_flag):
 
     if case_flag == 1:
         def RBF_kernel(x1, x2):
-            sigma = 5
+            sigma = 1000
             l = 0.1
             k = sigma**2 * np.exp( -np.linalg.norm(x1 - x2)**2 / (2*l**2) )
             return k
