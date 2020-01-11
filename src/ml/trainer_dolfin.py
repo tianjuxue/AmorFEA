@@ -73,11 +73,11 @@ class TrainerDolfin(Trainer):
 
 
     def run(self):
-        self.model = MixedNetwork(self.args, self.graph_info)
+        self.model = MLP(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
-                                              self.args.model_path + '/' + self.poisson.name + '/model_0'))
+                                              self.args.model_path + '/' + self.poisson.name + '/model_mlp_5'))
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-5)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)
         # self.optimizer = optim.SGD(self.model.parameters(), lr=1e-6, momentum=0.85)
 
@@ -87,9 +87,9 @@ class TrainerDolfin(Trainer):
             mean_L2_error = self.test_by_FEM(epoch)
             print('\n\n')
 
-            if mean_L2_error < 1e-4:
-                self.debug()
-                exit()
+            # if mean_L2_error < 1e-4:
+            #     self.debug()
+            #     exit()
 
             torch.save(self.model.state_dict(), self.args.root_path + '/' +
                        self.args.model_path + '/' + self.poisson.name + '/model_' + str(0))
@@ -97,7 +97,7 @@ class TrainerDolfin(Trainer):
     def debug(self):
         source = torch.ones(self.poisson.num_dofs).unsqueeze(0)
         solution = self.model(source)
-        scalar_field_paraview(self.args, solution.data.numpy().flatten(), self.poisson, "ok")
+        scalar_field_paraview(self.args, solution.data.numpy().flatten(), self.poisson, "debug_u")
 
 
 if __name__ == "__main__":

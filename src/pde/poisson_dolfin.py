@@ -116,38 +116,48 @@ class PoissonDolfin(Poisson):
         return A_np, B_np
 
     def debug(self):
-        v = da.Function(self.V)
-        v.vector()[4] = 1
+        _, B_np = self.compute_operators()
+        dof_data = np.random.rand(self.num_dofs)
         u = da.Function(self.V)
-        u.vector()[4] = 1
-        print(value)
+        u.vector()[:] = dof_data
+        L1 = da.assemble(u*u*fa.dx)
+        L2 = (np.matmul(B_np, dof_data)*dof_data).sum()
+        print(L1)
+        print(L2)
+ 
 
-    def inverse(self):
-        self.source = da.Expression("1000*sin(2*pi*x[0])", name='Control',  degree=3)
-        self.source = da.interpolate(self.source, self.V)
+    def adjoint_obj(self, x, target_u):
+        k=100
+        l=0.01
+        p = da.Constant(x)
+        x =  fa.SpatialCoordinate(self.mesh)
+        self.source = k*fa.exp( (-(x[0]-p[0])*(x[0]-p[0]) -(x[1]-p[1])*(x[1]-p[1])) / (2*l) )
+        # self.source = da.interpolate(self.source, self.V)
         u = self.solve_problem_variational_form()
-        d = da.Expression(("10*sin(2*pi*x[0])*sin(2*pi*x[1])"),  degree=3)
-        J = da.assemble((0.5 * fa.inner(u - d, u - d)) * fa.dx) 
-        control = da.Control(self.source)
-        
-        start = time.time()
-        dJdm = da.compute_gradient(J, control)
-        end = time.time()
-        print("time elapsed", end - start)
+        J = da.assemble((0.5 * fa.inner(u - target_u, u - target_u)) * fa.dx)
+        # J_val = J.item()
+        J_val = float(J)
+        # J_val = np.asarray(J)
+        return J_val, J, p
 
-        der = np.array(dJdm.vector()[:])
-        print(der.shape)
+
+    def adjoint_der(self, x, target_u):
+        _, J, p = self.adjoint_obj(x, target_u)
+        control = da.Control(p)
+        dJdm = da.compute_gradient(J, control)
+        der = dJdm.values()
+        return der     
 
 
 if __name__ == '__main__':
     args = arguments.args
     pde = PoissonDolfin(args)
+
     # adjacency_matrix = pde.get_adjacency_matrix()
     # print(adjacency_matrix.sum())
 
     # u = pde.solve_problem_variational_form()
     # save_solution(args, u, 'u')
-
-    pde.inverse()
+    pde.debug()
 
  

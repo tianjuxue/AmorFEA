@@ -99,9 +99,9 @@ class Trainer(object):
         print('====> Mean L2 error: {:.8f}'.format(mean_L2_error))
 
         index = epoch%self.fem_test.shape[0]
-        scalar_field_paraview(self.args, self.fem_test[index].data.numpy(), self.poisson, "source")
-        scalar_field_paraview(self.args, self.fem_solution[index].data.numpy(), self.poisson, "fem")
-        scalar_field_paraview(self.args, recon_batch[index].data.numpy(), self.poisson, "nn")
+        scalar_field_paraview(self.args, self.fem_test[index].data.numpy(), self.poisson, "train_f")
+        scalar_field_paraview(self.args, self.fem_solution[index].data.numpy(), self.poisson, "train_fem_u")
+        scalar_field_paraview(self.args, recon_batch[index].data.numpy(), self.poisson, "train_nn_u")
 
         return mean_L2_error
 

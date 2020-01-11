@@ -55,6 +55,8 @@ class MLP(nn.Module):
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
+                                 nn.Linear(args.input_size, args.input_size),
+                                 nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size))
         # initialize_parameters([self.fcc], True)
 
