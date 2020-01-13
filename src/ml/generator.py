@@ -98,7 +98,7 @@ def linear_visual(args, graph):
 
 if __name__ == '__main__':
     args = arguments.args
-    case_flag = 1
+    case_flag = 0
     if case_flag == 0:
         poisson_linear = PoissonLinear(args)
         samples = generate_uniform_samples(args, poisson_linear, 30000, case_flag)
@@ -110,4 +110,4 @@ if __name__ == '__main__':
         # samples = generate_gaussian_samples(args, poisson_robot, 3000, case_flag)
         samples = generate_uniform_samples(args, poisson_robot, 30000, case_flag)
 
-    scalar_field_paraview(args, samples[2], poisson_dolfin, 'debug_source')
+    # scalar_field_paraview(args, samples[2], poisson_dolfin, 'debug_source')

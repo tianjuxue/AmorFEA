@@ -62,20 +62,6 @@ class OptimizerRobotTrajectory(OptimizerRobot):
         L = L_dist + alpha*L_reg
         return L
 
-    def _objective(self, x):
-        x = x.reshape(-1, self.args.input_size)
-        source = torch.tensor(x, dtype=torch.float)
-        L = self._obj(source)
-        return L.data.numpy()
-
-    def _derivative(self, x):
-        x = x.reshape(-1, self.args.input_size)
-        source = torch.tensor(x, dtype=torch.float,  requires_grad=True)
-        L = self._obj(source)
-        J = torch.autograd.grad(L, source, create_graph=True,
-                                   retain_graph=True)[0]
-        return J.detach().numpy().flatten()
-
 
 class OptimizerRobotPoint(OptimizerRobot):
     def __init__(self, args):
@@ -100,20 +86,7 @@ class OptimizerRobotPoint(OptimizerRobot):
         L = (solution[0][self.tip_x1_index] - self.target_x1)**2 \
            +(solution[0][self.tip_x2_index] - self.target_x2)**2 
         return L
-
-    def _objective(self, x):
-        source = torch.tensor(x, dtype=torch.float).unsqueeze(0)
-        L = self._obj(source)
-        return L.data.numpy()
-
-    def _derivative(self, x):
-        source = torch.tensor(x, dtype=torch.float, requires_grad=True).unsqueeze(0)
-        L = self._obj(source)
-        J = torch.autograd.grad(L, source, create_graph=True,
-                                   retain_graph=True)[0]
-        J = J.detach().numpy().flatten()
-        return J
-
+        
 
 '''Helpers'''
 def x_para(t):

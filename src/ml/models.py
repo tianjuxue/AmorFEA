@@ -55,8 +55,6 @@ class MLP(nn.Module):
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
-                                 nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size))
         # initialize_parameters([self.fcc], True)
 
@@ -111,7 +109,8 @@ class MixedNetwork(nn.Module):
         self.bc_value, self.interior_flag, self.adj, self.B_sp = graph_info
 
         self.gc1 = GraphConvolution(1, 10)
-        self.gc2 = GraphConvolution(10, 1)
+        self.gc2 = GraphConvolution(10, 10)
+        self.gc3 = GraphConvolution(10, 1)
 
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
@@ -125,6 +124,10 @@ class MixedNetwork(nn.Module):
         x = x.unsqueeze(2)
         x = F.selu(self.gc1(x, self.adj))
         x = F.selu(self.gc2(x, self.adj))
+        x = F.selu(self.gc3(x, self.adj))
+
+        # x = F.selu(self.gc1(x, self.adj))
+        # x = F.selu(self.gc2(x, self.adj))
         x = x.squeeze()
 
         x = self.fcc(x)  

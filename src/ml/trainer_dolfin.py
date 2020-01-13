@@ -38,8 +38,9 @@ class TrainerDolfin(Trainer):
         term4 = batch_mat_vec(self.B_sp, x_control)
         term4 = term4*x_state
 
-        loss = term1.sum() + term2.sum() + term3.sum() - term4.sum()
+        loss = term1.sum() + 10*term2.sum() + 10*term3.sum() - term4.sum()
         return loss
+
 
     def initialization(self):
 
@@ -60,9 +61,9 @@ class TrainerDolfin(Trainer):
 
         # Can be much more general
         bc_flag_1 = torch.tensor(self.poisson.boundary_flags_list[0]).float()
-        bc_value_1 = 0.*bc_flag_1
+        bc_value_1 = 1.*bc_flag_1
         bc_flag_2 = torch.tensor(self.poisson.boundary_flags_list[1]).float()
-        bc_value_2 = 0.*bc_flag_2
+        bc_value_2 = 1.*bc_flag_2
         bc_value = bc_value_1 + bc_value_2
         interior_flag = torch.ones(self.poisson.num_vertices) - bc_flag_1 - bc_flag_2
         adjacency_matrix = self.poisson.get_adjacency_matrix()
@@ -73,9 +74,9 @@ class TrainerDolfin(Trainer):
 
 
     def run(self):
-        self.model = MLP(self.args, self.graph_info)
+        self.model = MixedNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
-                                              self.args.model_path + '/' + self.poisson.name + '/model_mlp_5'))
+                                              self.args.model_path + '/' + self.poisson.name + '/model_0'))
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)

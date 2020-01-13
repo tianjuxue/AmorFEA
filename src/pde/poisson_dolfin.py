@@ -19,7 +19,6 @@ class PoissonDolfin(Poisson):
         self.mesh = da.Mesh(self.args.root_path + '/' +  
                             self.args.solutions_path + '/saved_mesh/dolfin_coarse.xml')
 
-
     def _build_function_space(self):
         class Exterior(fa.SubDomain):
             def inside(self, x, on_boundary):
@@ -59,11 +58,13 @@ class PoissonDolfin(Poisson):
 
         self.V = fa.FunctionSpace(self.mesh, 'P', 1)
         
-        self.source = da.Expression(("1000*sin(2*pi*x[0])"),  degree=3)
+        self.source = da.Expression(("100*sin(2*pi*x[0])"),  degree=3)
+        self.source = da.Expression("k*100*exp( (-(x[0]-x0)*(x[0]-x0) -(x[1]-x1)*(x[1]-x1)) / (2*0.01*l) )", 
+                               k=1, l=1, x0=0.9, x1=0.1, degree=3)
         # self.source = da.Constant(0)
  
-        boundary_fn_ext = da.Constant(0.)
-        boundary_fn_int = da.Constant(0.)
+        boundary_fn_ext = da.Constant(1.)
+        boundary_fn_int = da.Constant(1.)
         boundary_bc_ext = da.DirichletBC(self.V, boundary_fn_ext, self.exterior)
         boundary_bc_int = da.DirichletBC(self.V, boundary_fn_int, self.interior)
         self.bcs =  [boundary_bc_ext, boundary_bc_int]
@@ -75,7 +76,7 @@ class PoissonDolfin(Poisson):
     # Constitutive relationships
     def _energy_density(self, u):
         # variational energy density of u
-        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) + 1*0.5*u**2 + 1*0.25*u**4 - u*self.source
+        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) + 10*0.5*u**2 + 10*0.25*u**4 - u*self.source
         return energy
 
     def energy(self, u):
@@ -124,40 +125,17 @@ class PoissonDolfin(Poisson):
         L2 = (np.matmul(B_np, dof_data)*dof_data).sum()
         print(L1)
         print(L2)
- 
-
-    def adjoint_obj(self, x, target_u):
-        k=100
-        l=0.01
-        p = da.Constant(x)
-        x =  fa.SpatialCoordinate(self.mesh)
-        self.source = k*fa.exp( (-(x[0]-p[0])*(x[0]-p[0]) -(x[1]-p[1])*(x[1]-p[1])) / (2*l) )
-        # self.source = da.interpolate(self.source, self.V)
-        u = self.solve_problem_variational_form()
-        J = da.assemble((0.5 * fa.inner(u - target_u, u - target_u)) * fa.dx)
-        # J_val = J.item()
-        J_val = float(J)
-        # J_val = np.asarray(J)
-        return J_val, J, p
-
-
-    def adjoint_der(self, x, target_u):
-        _, J, p = self.adjoint_obj(x, target_u)
-        control = da.Control(p)
-        dJdm = da.compute_gradient(J, control)
-        der = dJdm.values()
-        return der     
 
 
 if __name__ == '__main__':
     args = arguments.args
     pde = PoissonDolfin(args)
 
-    # adjacency_matrix = pde.get_adjacency_matrix()
-    # print(adjacency_matrix.sum())
-
-    # u = pde.solve_problem_variational_form()
-    # save_solution(args, u, 'u')
-    pde.debug()
+    adjacency_matrix = pde.get_adjacency_matrix()
+    exit()
+ 
+    u = pde.solve_problem_variational_form()
+    save_solution(args, u, 'u')
+    # pde.debug()
 
  

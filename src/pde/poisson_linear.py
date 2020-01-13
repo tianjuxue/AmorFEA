@@ -11,7 +11,7 @@ from .. import arguments
 class PoissonLinear(Poisson):
     def __init__(self, args):
         super(PoissonLinear, self).__init__(args)
-        self.name = 'square'
+        self.name = 'linear'
 
     def _build_mesh(self):
         args = self.args

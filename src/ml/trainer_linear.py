@@ -18,7 +18,7 @@ from ..graph.visualization import scalar_field_paraview
 class TrainerLinear(Trainer):
     def __init__(self, args):
         super(TrainerLinear, self).__init__(args)
-        self.poisson = TrainerLinear(self.args)
+        self.poisson = PoissonLinear(self.args)
         self.initialization()
 
     def loss_function(self, x_control, x_state):
@@ -43,12 +43,12 @@ class TrainerLinear(Trainer):
         self.args.input_size = self.data_X.shape[1]
         self.train_loader, self.test_loader = self.shuffle_data()
 
-        A_np, B_np, A_np_modified = self.poisson.compute_operators()
-        A = torch.tensor(A_np).float()
-        B = torch.tensor(B_np).float()
+        self.A_np, self.B_np, self.A_np_modified = self.poisson.compute_operators()
+        A = torch.tensor(self.A_np).float()
+        B = torch.tensor(self.B_np).float()
         self.A_sp = A.to_sparse()
         self.B_sp = B.to_sparse()
-        self.W_true = np.linalg.inv(A_np_modified)
+        self.A_inv = np.linalg.inv(self.A_np_modified)
 
         # Can be much more general
         # Fixed bc for now
@@ -79,22 +79,25 @@ class TrainerLinear(Trainer):
             train_loss = self.train(epoch)
             test_loss = self.test_by_loss(epoch)
             mean_L2_error = self.test_by_FEM(epoch)
-            # L_inf, L_fro = self.test_by_W(epoch)
+            L_inf, L_fro = self.test_by_W(epoch)
             print('\n\n')
-
-            if mean_L2_error < 1e-4:
-                self.debug()
-                exit()
 
             # if True:
             #     torch.save(self.model, self.args.root_path + '/' + self.args.model_path + '/linear/model_' + str(0))
 
     def test_by_W(self, epoch):
         self.model.eval()
-        W_trained = self.model.fc.weight.data.numpy()
-        W_trained = np.matmul(self.reset_matrix_interior, W_trained) + self.reset_matrix_boundary
-        L_inf = np.max(np.abs(W_trained - self.W_true))
-        L_fro = np.linalg.norm(np.abs(W_trained - self.W_true))
+        W_trained = self.model.fcc.weight.data.numpy()
+        tmp = np.matmul(self.reset_matrix_interior, W_trained)  
+        tmp = np.matmul(tmp, self.reset_matrix_interior)  
+        Q_trained = np.matmul(tmp, self.B_np)  
+
+        tmp = np.matmul(self.A_inv, self.reset_matrix_interior) 
+        Q_true = np.matmul(tmp, self.B_np)  
+       
+        L_inf = np.max(np.abs(Q_trained - Q_true))
+        L_fro = np.linalg.norm(np.abs(Q_trained - Q_true))
+
         print('====> L_inf norm for matrix error is {}'.format(L_inf))
         print('====> L_fro norm for matrix error is {}'.format(L_fro))
         return L_inf, L_fro
