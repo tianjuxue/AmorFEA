@@ -37,7 +37,7 @@ class OptimizerDolfinIdentification(OptimizerDolfin):
         start = time.time()
         res = opt.minimize(fun=self._objective,
                            x0=x_initial, 
-                           method='BFGS', 
+                           method='CG', 
                            jac=self._derivative,
                            callback=None,
                            options=options)
@@ -66,18 +66,21 @@ class OptimizerDolfinReconstruction(OptimizerDolfin):
         self.alpha = 0*1e-6
 
     def optimize(self):
-        x_initial = np.random.randn(self.args.input_size)
+        # x_initial = np.random.randn(self.args.input_size)
+        x_initial = np.zeros(self.args.input_size)
         # x_initial = self.perfect_init_guess
-        x_initial = np.ones(self.args.input_size)
+        
         options = {'eps': 1e-15, 'maxiter': 1000, 'disp': True} # CG > BFGS > Newton-CG
         start = time.time()
-        # res = opt.minimize(fun=self._objective,
-        #                    x0=x_initial, 
-        #                    method='CG', 
-        #                    jac=self._derivative,
-        #                    callback=None,
-        #                    options=options)
-        res = minimize_ipopt(self._objective, x_initial, jac=self._derivative)
+        res = opt.minimize(fun=self._objective,
+                           x0=x_initial, 
+                           method='CG', 
+                           jac=self._derivative,
+                           callback=None,
+                           options=options)
+        # res = minimize_ipopt(self._objective, x_initial, jac=self._derivative)
+        # res = opt.minimize(fun=self._objective, x0=x_initial, method='L-BFGS-B', jac=self._derivative)
+
         end = time.time()
         print("Time elasped {}".format(end - start))
         # x_opt = res.x.reshape(-1, self.args.input_size)
@@ -102,7 +105,7 @@ class OptimizerDolfinSurrogate(OptimizerDolfin):
         super(OptimizerDolfinSurrogate, self).__init__(args)
         self.trainer = TrainerDolfin(args)
         self.path = self.args.root_path + '/' + self.args.model_path + '/' + \
-                    self.poisson.name + '/model_0'
+                    self.poisson.name + '/model_mlp_3'
         self.model = MLP(self.args, self.trainer.graph_info)
         self.model.load_state_dict(torch.load(self.path))
         self.B_sp = self.trainer.B_sp.to_dense()
@@ -118,7 +121,6 @@ class OptimizerDolfinIdentificationSurrogate(OptimizerDolfinIdentification, Opti
     """
     def __init__(self, args):
         super(OptimizerDolfinIdentificationSurrogate, self).__init__(args)
-
 
     def _obj(self, p):
         coo = torch.tensor(self.poisson.coo_dof, dtype=torch.float)
@@ -168,7 +170,6 @@ class OptimizerDolfinReconstructionSurrogate(OptimizerDolfinReconstruction, Opti
     """
     def __init__(self, args):
         super(OptimizerDolfinReconstructionSurrogate, self).__init__(args)
-
 
     def _obj(self, source):
         source = source.unsqueeze(0)
@@ -230,14 +231,12 @@ def target_solution_id(args, pde):
 def target_solution_rc(args, pde):
     # pde.source = da.Expression(("100*sin(2*pi*x[0])"),  degree=3)
     pde.source = da.Expression("k*100*exp( (-(x[0]-x0)*(x[0]-x0) -(x[1]-x1)*(x[1]-x1)) / (2*0.01*l) )", 
-                               k=1, l=1, x0=0.9, x1=0.1, degree=3)
-    debug_var = da.interpolate(pde.source, pde.V)
-    # save_solution(args, pde.source, 'opt_fem_f')
-
+                               k=1, l=1, x0=0.75, x1=0.75, degree=3)
+    source_vec = da.interpolate(pde.source, pde.V)
+    save_solution(args, source_vec, 'opt_fem_f')
     u = pde.solve_problem_variational_form()
-    save_solution(args, u, 'opt_fem_u')
     dof_data = torch.tensor(u.vector()[:], dtype=torch.float).unsqueeze(0)
-    return dof_data, u, debug_var.vector()[:]
+    return dof_data, u, source_vec.vector()[:]
 
 def produce_solution(pde, x):
     pde.set_control_variable(x)
@@ -247,10 +246,15 @@ def produce_solution(pde, x):
 
 if __name__ == '__main__':
     args = arguments.args
+
     optimizer = OptimizerDolfinReconstructionSurrogate(args)
     x = optimizer.optimize()
-    # print(x)
- 
+    scalar_field_paraview(args, x, optimizer.poisson, "opt_nn_f")
+
+    optimizer = OptimizerDolfinReconstructionAdjoint(args)
+    x = optimizer.optimize()
+    scalar_field_paraview(args, x, optimizer.poisson, "opt_ad_f")
+
     # u = produce_solution(optimizer.poisson, x)
     # save_solution(args, u, 'opt_nn_u')
-    scalar_field_paraview(args, x, optimizer.poisson, "opt_ad_f")
+    

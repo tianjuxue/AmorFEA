@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import vtk
 from vtk.util.numpy_support import vtk_to_numpy
 from .. import arguments
-from ..opt.trajectories import heart_shape
+from ..opt.optimizer_robot import heart_shape
+
 
 def plot_robot_and_trajectory(args):
     x_s, y_s = heart_shape()
@@ -36,7 +37,7 @@ def plot_robot_and_trajectory(args):
         fig = plt.figure(figsize=(8, 8))
         # plt.triplot(x[:,0], x[:,1], tri, linewidth=0.2, color='r')    
         plt.triplot(x[:,0], x[:,1], tri, marker='o', markersize=1, linewidth=1, color='orange')
-        plt.plot(x_s[:index + 1], y_s[:index + 1])
+        # plt.plot(x_s[:index + 1], y_s[:index + 1])
         plt.plot(x_s, y_s, color='blue', label='prescribed')
         plt.plot(x_r, y_r, color='red', label='optimized')
         plt.gca().set_aspect('equal')

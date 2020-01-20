@@ -68,15 +68,16 @@ class TrainerDolfin(Trainer):
         interior_flag = torch.ones(self.poisson.num_vertices) - bc_flag_1 - bc_flag_2
         adjacency_matrix = self.poisson.get_adjacency_matrix()
         A_normalized = normalize_adj(adjacency_matrix)
+
         self.graph_info = [bc_value, interior_flag, A_normalized, self.B_sp]
 
         self.FEM_evaluation()  
 
 
     def run(self):
-        self.model = MixedNetwork(self.args, self.graph_info)
-        self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
-                                              self.args.model_path + '/' + self.poisson.name + '/model_0'))
+        self.model = MLP(self.args, self.graph_info)
+        # self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
+        #                                       self.args.model_path + '/' + self.poisson.name + '/model_mlp_2'))
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)
