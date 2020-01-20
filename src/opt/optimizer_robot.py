@@ -1,9 +1,7 @@
 import numpy as np
 import torch
 import scipy.optimize as opt
-from .trajectories import heart_shape
 from .optimizer import Optimizer
-from ..
 from ..ml.trainer_robot import TrainerRobot
 from ..ml.models import RobotNetwork
 from .. import arguments

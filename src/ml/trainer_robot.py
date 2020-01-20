@@ -9,7 +9,7 @@ import numpy as np
 import os
 import collections
 from .trainer import Trainer, batch_mat_vec, normalize_adj, boundary_flag_matrix
-from .models import LinearRegressor, MLP, GCN, MixedNetwork, RobotNetwork, RobotSolver
+from .models import LinearRegressor, MLP, MixedNetwork, RobotNetwork, RobotSolver
 from ..pde.poisson_robot import PoissonRobot
 from .. import arguments
 from ..graph.visualization import scalar_field_paraview
