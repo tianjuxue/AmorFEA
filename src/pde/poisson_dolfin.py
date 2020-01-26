@@ -17,7 +17,7 @@ class PoissonDolfin(Poisson):
 
     def _build_mesh(self):
         # Change log: Ubuntu has da but OS X needs to use fa
-        self.mesh = fa.Mesh(self.args.root_path + '/' +  
+        self.mesh = da.Mesh(self.args.root_path + '/' +  
                             self.args.solutions_path + '/saved_mesh/dolfin_coarse.xml')
 
     def _build_function_space(self):

@@ -100,7 +100,6 @@ class PoissonLinear(Poisson):
         fa.solve(dE == 0, u, self.bcs, J=jacE)
         return u
 
-
     def solve_problem_weak_form(self):
         u = fa.Function(self.V)      
         du = fa.TrialFunction(self.V)

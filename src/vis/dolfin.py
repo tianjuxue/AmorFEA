@@ -30,7 +30,8 @@ def plot_dolfin(args, x, u, tri, name, mesh_flag, vmin=None, vmax=None):
     else:
         # tpc = plt.tripcolor(x[:,0], x[:,1], tri, colors, shading='gouraud')
         tpc = plt.tripcolor(x[:,0], x[:,1], tri, colors, shading='flat', vmin=vmin, vmax=vmax)
-        plt.colorbar(tpc)
+        # cb = plt.colorbar(tpc, aspect=10)
+        # cb.ax.tick_params(labelsize=20)
 
     plt.gca().set_aspect('equal')
     plt.axis('off')
@@ -38,7 +39,7 @@ def plot_dolfin(args, x, u, tri, name, mesh_flag, vmin=None, vmax=None):
     # plt.xlim(-2, 3.5)
     # plt.ylim(-0.5, 11)
     # plt.legend(loc='right')
-    # fig.savefig(args.root_path + '/others/' + name + '.png', bbox_inches='tight')
+    fig.savefig(args.root_path + '/images/' + name + '.png', bbox_inches='tight')
 
 
 def plot_error(args):
@@ -46,20 +47,20 @@ def plot_error(args):
     _, u_ad, _ = read_data(args, 'opt_ad_f')   
     _, u_nn, _ = read_data(args, 'opt_nn_f')
     print(np.max(np.abs(u_ad-u_nn)))
-    plot_dolfin(args, x, np.abs(u_fem - u_ad), tri, 'ad_error', False, 0, 80)
-    plot_dolfin(args, x, np.abs(u_fem - u_nn), tri, 'nn_error', False, 0, 80)
+    plot_dolfin(args, x, np.abs(u_fem - u_ad), tri, 'ad_error', False, 0, 6)
+    plot_dolfin(args, x, np.abs(u_fem - u_nn), tri, 'nn_error', False, 0, 6)
 
 
 def plot_from_file(args, name, mesh_flag):
     x, u, tri = read_data(args, name)
-    plot_dolfin(args, x, u, tri, name, mesh_flag, 0, 80)
+    plot_dolfin(args, x, u, tri, name, mesh_flag, 0, 6)
 
 
 if __name__ == '__main__':
     args = arguments.args
     # plot_from_file(args, 'opt_nn_f', True)
-    # plot_from_file(args, 'opt_nn_f', False)
-    # plot_from_file(args, 'opt_ad_f', False)
-    plot_from_file(args, 'opt_fem_f', False)
+    plot_from_file(args, 'opt_nn_f', False)
+    plot_from_file(args, 'opt_ad_f', False)
+    # plot_from_file(args, 'opt_fem_f', False)
     # plot_error(args)
     plt.show()

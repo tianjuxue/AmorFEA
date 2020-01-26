@@ -42,21 +42,22 @@ class OptimizerRobotTrajectory(OptimizerRobot):
         solution = self.model(source)
         print("NN surrogate, loss is", self.trainer.loss_function(source, solution).data.numpy())
         for i in range(31):
-            scalar_field_paraview(self.args, solution.data.numpy()[i], self.trainer.poisson, "time_series_nn/u" + str(i))
+            scalar_field_paraview(self.args, solution.data.numpy()[i], self.trainer.poisson, "/robot/time_series_nn/u" + str(i))
 
         for i in range(31):
             gt_sol = self.trainer.forward_prediction(x_opt[i], self.model)
-            scalar_field_paraview(self.args, gt_sol, self.trainer.poisson, "time_series_gt/u" + str(i))
+            scalar_field_paraview(self.args, gt_sol, self.trainer.poisson, "/robot/time_series_gt/u" + str(i))
 
         return res.x
     
     def _obj(self, source):
+        source = source.reshape(-1, self.args.input_size)
         solution = self.model(source)
         sol_tip = solution[:, [self.tip_x1_index, self.tip_x2_index]]
         tar_tip = torch.tensor(self.target_coos.transpose(), dtype=torch.float)
         L_dist = ((sol_tip - tar_tip)**2).sum()
         L_reg = ((source[1:,:] - source[:-1, :])**2).sum()
-        alpha = 1e-5
+        alpha = 0*1e-3
         L = L_dist + alpha*L_reg
         return L
 
@@ -80,6 +81,7 @@ class OptimizerRobotPoint(OptimizerRobot):
         return res.x
 
     def _obj(self, source):
+        source = source.reshape(-1, self.args.input_size)
         solution = self.model(source)
         L = (solution[0][self.tip_x1_index] - self.target_x1)**2 \
            +(solution[0][self.tip_x2_index] - self.target_x2)**2 

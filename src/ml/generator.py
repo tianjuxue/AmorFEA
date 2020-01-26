@@ -49,7 +49,7 @@ def generate_gaussian_samples(args, pde, num_samps, case_flag):
 
 def generate_uniform_samples(args, pde, num_samps, case_flag):
     M = pde.num_dofs
-    samples = np.random.uniform(-0.1, 0.1, (num_samps, M))
+    samples = np.random.uniform(-1, 1, (num_samps, M))
     save_generated_data(args, pde, 'Uniform', samples)
     return samples
 

@@ -81,10 +81,10 @@ def vector_field_2D(attribute_x1, attribute_x2, graph):
     ax.set_aspect('equal')
 
 
-def plot_training(L_inf, L_fro):
+def plot_training(L):
     fig = plt.figure()
     ax = fig.gca()
-    epoch = np.arange(0, len(L_inf), 1)
-    ax.plot(epoch, L_inf)
-    # ax.set_yscale('log')
+    epoch = np.arange(0, len(L), 1)
+    ax.plot(epoch, L)
+    ax.set_yscale('log')
 

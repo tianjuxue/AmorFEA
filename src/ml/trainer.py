@@ -21,14 +21,21 @@ class Trainer(object):
         inds = np.random.permutation(n_samps)    
         inds_train = inds[:n_train]
         inds_test  = inds[n_train:]
+
         train_X = self.data_X[inds_train]
         test_X = self.data_X[inds_test]
 
-        self.train_X = torch.tensor(train_X).float().view(train_X.shape[0], self.args.input_size)
-        self.test_X = torch.tensor(test_X).float().view(test_X.shape[0], self.args.input_size)
+        self.train_X = torch.tensor(train_X, dtype=torch.float)
+        self.test_X = torch.tensor(test_X, dtype=torch.float)
 
-        train_data = TensorDataset(self.train_X)
-        test_data = TensorDataset(self.test_X)
+        train_Y = self.data_Y[inds_train]
+        test_Y = self.data_Y[inds_test]
+        self.train_Y = torch.tensor(train_Y, dtype=torch.float)
+        self.test_Y = torch.tensor(test_Y, dtype=torch.float)
+
+        train_data = TensorDataset(self.train_X, self.train_Y)
+        test_data = TensorDataset(self.test_X, self.test_Y)
+
         train_loader = DataLoader(train_data, batch_size=self.args.batch_size, shuffle=True)
         test_loader = DataLoader(test_data, batch_size=self.args.batch_size, shuffle=True)
 
@@ -42,24 +49,25 @@ class Trainer(object):
             # In case we need second order optimizer, a closure has to be defined
             def closure():
                 self.optimizer.zero_grad()
-                recon_batch = self.model(data)
-                loss = self.loss_function(data, recon_batch)
+                recon_batch = self.model(data_x)
+                loss = self.loss_function(data_x, recon_batch, data_y)
                 loss.backward()
                 return loss
 
-            data = data[0].float()
+            data_x = data[0].float()
+            data_y = data[1].float()
             self.optimizer.zero_grad()
-            recon_batch = self.model(data)
-            loss = self.loss_function(data, recon_batch)
+            recon_batch = self.model(data_x)
+            loss = self.loss_function(data_x, recon_batch, data_y)
             loss.backward()
             train_loss += loss.item()
             self.optimizer.step(closure)
 
             if batch_idx % self.args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
+                    epoch, batch_idx * len(data_x), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
-                    loss.item() / len(data)))
+                    loss.item() / len(data_x)))
 
         train_loss /= len(self.train_loader.dataset)
         print('====> Epoch: {} Average loss: {:.6f}'.format(epoch, train_loss))
@@ -70,23 +78,33 @@ class Trainer(object):
         test_loss = 0
         with torch.no_grad():
             for i, data in enumerate(self.test_loader):
-                data = data[0].float()
-                recon_batch = self.model(data)
-                test_loss += self.loss_function(data, recon_batch).item()
+                data_x = data[0].float()
+                data_y = data[1].float()
+                recon_batch = self.model(data_x)
+                test_loss += self.loss_function(data_x, recon_batch, data_y).item()
         test_loss /= len(self.test_loader.dataset)
         print('====> Epoch: {} Test set loss: {:.6f}'.format(epoch, test_loss))
         return test_loss
 
-    def FEM_evaluation(self):
-        num_fem_test = 100
-        self.fem_test = self.test_X[:num_fem_test]
+    def FEM(self, source):
         fem_solution = []
-        for i in range(num_fem_test):
-            self.poisson.set_control_variable(self.fem_test[i])
+        for i in range(len(source)):
+            self.poisson.set_control_variable(source[i])
             u = self.poisson.solve_problem_variational_form()
             dof_data = u.vector()[:]
             fem_solution.append(dof_data)
-        self.fem_solution = torch.Tensor(fem_solution).float()
+        fem_solution = torch.Tensor(fem_solution).float()
+        return fem_solution
+
+    def FEM_evaluation(self):
+        num_fem_test = 100
+        self.fem_test = self.test_X[:num_fem_test]
+        self.fem_solution = self.FEM(self.fem_test)
+
+    def FEM_evaluation_all(self):
+        self.data_Y = self.FEM(self.data_X).data.numpy()
+        np.save(self.args.root_path + '/' + self.args.numpy_path + '/dolfin/fem_solution.npy', 
+                self.data_Y)
 
     def test_by_FEM(self, epoch):
         self.model.eval()

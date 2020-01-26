@@ -37,7 +37,7 @@ class OptimizerDolfinIdentification(OptimizerDolfin):
         start = time.time()
         res = opt.minimize(fun=self._objective,
                            x0=x_initial, 
-                           method='CG', 
+                           method='BFGS', 
                            jac=self._derivative,
                            callback=None,
                            options=options)
@@ -63,7 +63,7 @@ class OptimizerDolfinReconstruction(OptimizerDolfin):
         super(OptimizerDolfinReconstruction, self).__init__(args)
         self.target_dof, self.target_u, self.perfect_init_guess = target_solution_rc(self.args, self.poisson)
         self.args.input_size = self.poisson.num_dofs
-        self.alpha = 0*1e-6
+        self.alpha = 1e-3
 
     def optimize(self):
         # x_initial = np.random.randn(self.args.input_size)
@@ -74,7 +74,7 @@ class OptimizerDolfinReconstruction(OptimizerDolfin):
         start = time.time()
         res = opt.minimize(fun=self._objective,
                            x0=x_initial, 
-                           method='CG', 
+                           method='BFGS', 
                            jac=self._derivative,
                            callback=None,
                            options=options)
@@ -183,7 +183,7 @@ class OptimizerDolfinReconstructionSurrogate(OptimizerDolfinReconstruction, Opti
         tmp2 = batch_mat_vec(self.B_sp, source)
         L_reg = source*tmp2
 
-        L = L_diff.sum() + self.alpha*L_reg.sum()
+        L = 0.5*(L_diff.sum() + self.alpha*L_reg.sum())
         return L
 
 
@@ -200,7 +200,7 @@ class OptimizerDolfinReconstructionAdjoint(OptimizerDolfinReconstruction, Optimi
         self.poisson.source = f
         u = self.poisson.solve_problem_variational_form()
         L_tape = da.assemble( ( 0.5 * fa.inner(u - self.target_u, u - self.target_u)  
-                                +self.alpha*fa.inner(u, u) ) * fa.dx )
+                               + 0.5 * self.alpha * fa.inner(f, f) ) * fa.dx )
         L = float(L_tape)
         return L, L_tape, f
 
@@ -243,17 +243,37 @@ def produce_solution(pde, x):
     u = pde.solve_problem_variational_form()
     return u
 
+def run(args):
+    alpha_list = [1e-0, 1e-3, 1e-6]
+    optimizer_nn = OptimizerDolfinReconstructionSurrogate(args)
+    optimizer_ad = OptimizerDolfinReconstructionAdjoint(args)
+    for alpha in alpha_list:
+        optimizer_nn.alpha = alpha
+        x_nn = optimizer_nn.optimize()
+        scalar_field_paraview(args, x_nn, optimizer_nn.poisson, "opt_nn_f")
+
+        optimizer_ad.alpha = alpha
+        x_ad = optimizer_ad.optimize()
+        scalar_field_paraview(args, x_ad, optimizer_ad.poisson, "opt_ad_f")
+
+        print("true error nn", optimizer_ad._objective(x_nn))
+        print("true error ad", optimizer_ad._objective(x_ad))
+        print('\n')
 
 if __name__ == '__main__':
     args = arguments.args
+    run(args)
 
-    optimizer = OptimizerDolfinReconstructionSurrogate(args)
-    x = optimizer.optimize()
-    scalar_field_paraview(args, x, optimizer.poisson, "opt_nn_f")
+    # optimizer_nn = OptimizerDolfinReconstructionSurrogate(args)
+    # x_nn = optimizer_nn.optimize()
+    # scalar_field_paraview(args, x_nn, optimizer_nn.poisson, "opt_nn_f")
 
-    optimizer = OptimizerDolfinReconstructionAdjoint(args)
-    x = optimizer.optimize()
-    scalar_field_paraview(args, x, optimizer.poisson, "opt_ad_f")
+    # optimizer_ad = OptimizerDolfinReconstructionAdjoint(args)
+    # x_ad = optimizer_ad.optimize()
+    # scalar_field_paraview(args, x_ad, optimizer_ad.poisson, "opt_ad_f")
+
+    # print("true error nn", optimizer_ad._objective(x_nn))
+    # print("true error ad", optimizer_ad._objective(x_ad))
 
     # u = produce_solution(optimizer.poisson, x)
     # save_solution(args, u, 'opt_nn_u')
