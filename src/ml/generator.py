@@ -98,7 +98,7 @@ def linear_visual(args, graph):
 
 if __name__ == '__main__':
     args = arguments.args
-    case_flag = 0
+    case_flag = 1
     if case_flag == 0:
         poisson_linear = PoissonLinear(args)
         samples = generate_uniform_samples(args, poisson_linear, 30000, case_flag)

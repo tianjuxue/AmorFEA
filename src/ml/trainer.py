@@ -98,7 +98,8 @@ class Trainer(object):
 
     def FEM_evaluation(self):
         num_fem_test = 100
-        self.fem_test = self.test_X[:num_fem_test]
+        start = 0
+        self.fem_test = self.test_X[start:start+num_fem_test]
         self.fem_solution = self.FEM(self.fem_test)
 
     def FEM_evaluation_all(self):
