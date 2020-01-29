@@ -176,12 +176,13 @@ class TrainerRobot(Trainer):
                 optimizer.zero_grad()
                 solution = solver(source)
                 loss = self.loss_function(source, solution)
-                loss.backward()
+                loss.backward()  # (create_graph=True, retain_graph=True)
                 return loss
             optimizer.zero_grad()
             solution = solver(source)
             loss = self.loss_function(source, solution)
             print("Optimization for ground truth, loss is", loss.data.numpy())
+            #TODO(Tianju)
             loss.backward()
             optimizer.step(closure)
             loss_pre = loss_crt
@@ -189,6 +190,7 @@ class TrainerRobot(Trainer):
             if (loss_pre - loss_crt)**2 < tol:
                 break
 
+        # return torch.autograd.grad(objective(solver(source)), control_params)[0]
         return solution[0].data.numpy()
 
 

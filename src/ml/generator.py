@@ -98,10 +98,10 @@ def linear_visual(args, graph):
 
 if __name__ == '__main__':
     args = arguments.args
-    case_flag = 1
+    case_flag = 0
     if case_flag == 0:
         poisson_linear = PoissonLinear(args)
-        samples = generate_uniform_samples(args, poisson_linear, 30000, case_flag)
+        samples = generate_uniform_samples(args, poisson_linear, 10000, case_flag)
     elif case_flag == 1:
         poisson_dolfin = PoissonDolfin(args)
         samples = generate_gaussian_samples(args, poisson_dolfin, 30000, case_flag)

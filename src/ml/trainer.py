@@ -104,8 +104,8 @@ class Trainer(object):
 
     def FEM_evaluation_all(self):
         self.data_Y = self.FEM(self.data_X).data.numpy()
-        np.save(self.args.root_path + '/' + self.args.numpy_path + '/dolfin/fem_solution.npy', 
-                self.data_Y)
+        np.save(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
+                '/fem_solution.npy', self.data_Y)
 
     def test_by_FEM(self, epoch):
         self.model.eval()

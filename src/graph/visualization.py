@@ -80,11 +80,3 @@ def vector_field_2D(attribute_x1, attribute_x2, graph):
     ax.quiver(x_pos, y_pos, x_direct, y_direct, scale=None)
     ax.set_aspect('equal')
 
-
-def plot_training(L):
-    fig = plt.figure()
-    ax = fig.gca()
-    epoch = np.arange(0, len(L), 1)
-    ax.plot(epoch, L)
-    ax.set_yscale('log')
-

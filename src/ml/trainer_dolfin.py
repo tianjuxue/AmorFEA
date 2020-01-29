@@ -65,7 +65,8 @@ class TrainerDolfin(Trainer):
 
         self.args.load_fem_data = True
         if self.args.load_fem_data:
-            self.data_Y = np.load(self.args.root_path + '/' + self.args.numpy_path + '/dolfin/fem_solution.npy') 
+            self.data_Y = np.load(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
+                                 '/fem_solution.npy') 
         else:
             self.FEM_evaluation_all()
 
