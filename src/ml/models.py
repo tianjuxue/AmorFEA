@@ -166,20 +166,28 @@ class RobotNetwork(nn.Module):
 
 
 class RobotSolver(nn.Module):
-    def __init__(self, args, graph_info):
+    def __init__(self, args, graph_info, manual=False):
         super(RobotSolver, self).__init__()
         self.args = args
         self.mat_list, self.joints, self.coo_diff, self.shapes = graph_info
-        self.para_angles = Parameter(torch.zeros(self.shapes[0]//2) + 0.5*np.pi)
-        self.para_disp = Parameter(torch.zeros(self.shapes[1]))
+
+        self.para_angles = torch.zeros(self.shapes[0]//2) + 0.5*np.pi
+        self.para_disp = torch.zeros(self.shapes[1])
+        if manual:
+            self.para = torch.cat((self.para_angles, self.para_disp))
+            self.para.requires_grad = True
+        else:
+            self.para = Parameter(torch.cat((self.para_angles, self.para_disp)))
 
     def reset_parameters(self, source, robot_network):
         angles = robot_network.get_angles(source)
-        self.para_angles.data = angles.squeeze()
+        self.para.data[:self.shapes[0]//2] = angles.squeeze()
         _, int_u = robot_network.get_disp(source)
-        self.para_disp.data = int_u.squeeze()
+        self.para.data[self.shapes[0]//2:] = int_u.squeeze()
 
     def forward(self, x):
+        self.para_angles = self.para[:self.shapes[0]//2]
+        self.para_disp = self.para[self.shapes[0]//2:]
         lx_u, ly_u, rx_u, ry_u, bc_u = constrain(x, self.mat_list, self.coo_diff, 
                                                  self.joints, self.para_angles.unsqueeze(0))
         int_u = batch_mat_vec(self.mat_list[-1].transpose(0, 1), self.para_disp.unsqueeze(0))

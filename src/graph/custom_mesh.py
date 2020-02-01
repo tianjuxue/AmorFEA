@@ -39,10 +39,12 @@ def slender_rod():
 
 if __name__ == '__main__':
     args = arguments.args
-    case_flag = 2
+    case_flag = 0
     if case_flag == 0:
-        mesh = unit_square() 
-        file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
+        # mesh = unit_square() 
+        # file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
+        mesh = unit_disk() 
+        file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_disk.xml')
     elif case_flag == 1:
         mesh = irregular_channel() 
         file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_trapezoid.xml')

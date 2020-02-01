@@ -13,8 +13,7 @@ class Trainer(object):
     """
     def __init__(self, args):
         self.args = args
-        torch.manual_seed(self.args.seed)
-
+        
     def shuffle_data(self):
         n_samps = len(self.data_X)
         n_train = int(self.args.train_portion*n_samps)
@@ -56,18 +55,23 @@ class Trainer(object):
 
             data_x = data[0].float()
             data_y = data[1].float()
+
             self.optimizer.zero_grad()
             recon_batch = self.model(data_x)
             loss = self.loss_function(data_x, recon_batch, data_y)
-            loss.backward()
-            train_loss += loss.item()
-            self.optimizer.step(closure)
 
             if batch_idx % self.args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data_x), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
                     loss.item() / len(data_x)))
+
+
+            loss.backward()
+            train_loss += loss.item()
+            self.optimizer.step(closure)
+
+
 
         train_loss /= len(self.train_loader.dataset)
         print('====> Epoch: {} Average loss: {:.6f}'.format(epoch, train_loss))

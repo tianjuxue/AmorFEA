@@ -6,6 +6,7 @@ import mshr
 import fenics as fa
 from .poisson import Poisson
 from .. import arguments
+from ..graph.visualization import scalar_field_paraview, save_solution
 
 
 class PoissonLinear(Poisson):
@@ -15,52 +16,20 @@ class PoissonLinear(Poisson):
 
     def _build_mesh(self):
         args = self.args
-        mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
+        # mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
+        mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_disk.xml')
         # mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3)
         self.mesh = mesh
 
     def _build_function_space(self):
         class Exterior(fa.SubDomain):
             def inside(self, x, on_boundary):
-                return on_boundary and (
-                    fa.near(x[1], 1) or
-                    fa.near(x[0], 1) or
-                    fa.near(x[0], 0) or
-                    fa.near(x[1], 0))
+                return on_boundary
 
-        class Left(fa.SubDomain):
-            def inside(self, x, on_boundary):
-                return on_boundary and fa.near(x[0], 0)
-
-        class Right(fa.SubDomain):
-            def inside(self, x, on_boundary):
-                return on_boundary and fa.near(x[0], 1)
-
-        class Bottom(fa.SubDomain):
-            def inside(self, x, on_boundary):
-                return on_boundary and fa.near(x[1], 0)
-
-        class Top(fa.SubDomain):
-            def inside(self, x, on_boundary):
-                return on_boundary and fa.near(x[1], 1)
-
-        self.exteriors_dic = {'left': Left(), 'right': Right(), 'bottom': Bottom(), 'top': Top()}
-        self.exterior = Exterior()
-        
+        self.exterior = Exterior()        
         self.V = fa.FunctionSpace(self.mesh, 'P', 1)
         self.sub_domains = fa.MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
         self.sub_domains.set_all(0)
-
-        self.boundaries_id_dic = {'left': 1, 'right': 2, 'bottom': 3, 'top': 4}
-        self.left = Left()
-        self.left.mark(self.sub_domains, 1)
-        self.right = Right()
-        self.right.mark(self.sub_domains, 2)
-        self.bottom = Bottom()
-        self.bottom.mark(self.sub_domains, 3)
-        self.top = Top()
-        self.top.mark(self.sub_domains, 4)
-
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
 
@@ -69,9 +38,8 @@ class PoissonLinear(Poisson):
 
         self.bcs = []
         boundary_fn = fa.Constant(0.)
-        if boundary_fn is not None:
-            boundary_bc = fa.DirichletBC(self.V, boundary_fn, self.exterior)
-            self.bcs = self.bcs + [boundary_bc]
+        boundary_bc = fa.DirichletBC(self.V, boundary_fn, self.exterior)
+        self.bcs = self.bcs + [boundary_bc]
 
     def _set_detailed_boundary_flags(self):
         self.boundary_flags_list = [self.boundary_flags]
@@ -157,7 +125,5 @@ class PoissonLinear(Poisson):
 if __name__ == '__main__':
     args = arguments.args
     pde = PoissonLinear(args)
-    # u = pde.solve_problem_weak_form_explicit()
-    # file = fa.File(args.root_path + '/' + args.solutions_path + '/u.pvd')
-    # u.rename('u', 'u')
-    # file << u
+    u = pde.solve_problem_variational_form()
+    save_solution(args, u, 'u')

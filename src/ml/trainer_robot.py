@@ -23,7 +23,8 @@ class TrainerRobot(Trainer):
         self.initialization()
 
 
-    def loss_function(self, x_control, x_state):
+    def loss_function(self, x_control, x_state, y_state=None):
+        # y_state is not useful
         young_mod = 100
         poisson_ratio = 0.3
         shear_mod = young_mod / (2 * (1 + poisson_ratio))
@@ -99,20 +100,25 @@ class TrainerRobot(Trainer):
         # with certain operations. Still looking into this issue.
         # see https://github.com/pytorch/pytorch/issues/9674
         # TODO(Tianju): Do the if selection in optimizer module
+
+        bc_btm_mat = torch.tensor(bc_btm_mat).float().to_sparse()
+        bc_lx_mat = torch.tensor(bc_lx_mat).float().to_sparse()
+        bc_ly_mat = torch.tensor(bc_ly_mat).float().to_sparse()
+        bc_rx_mat = torch.tensor(bc_rx_mat).float().to_sparse()
+        bc_ry_mat = torch.tensor(bc_ry_mat).float().to_sparse()
+        int_mat = torch.tensor(int_mat).float().to_sparse()
+
         if self.opt:
-            bc_btm_mat = torch.tensor(bc_btm_mat).float()
-            bc_lx_mat = torch.tensor(bc_lx_mat).float()
-            bc_ly_mat = torch.tensor(bc_ly_mat).float()
-            bc_rx_mat = torch.tensor(bc_rx_mat).float()
-            bc_ry_mat = torch.tensor(bc_ry_mat).float()
-            int_mat = torch.tensor(int_mat).float()
-        else:
-            bc_btm_mat = torch.tensor(bc_btm_mat).float().to_sparse()
-            bc_lx_mat = torch.tensor(bc_lx_mat).float().to_sparse()
-            bc_ly_mat = torch.tensor(bc_ly_mat).float().to_sparse()
-            bc_rx_mat = torch.tensor(bc_rx_mat).float().to_sparse()
-            bc_ry_mat = torch.tensor(bc_ry_mat).float().to_sparse()
-            int_mat = torch.tensor(int_mat).float().to_sparse()
+            bc_btm_mat = bc_btm_mat.to_dense()
+            bc_lx_mat = bc_lx_mat.to_dense()
+            bc_ly_mat = bc_ly_mat.to_dense()
+            bc_rx_mat = bc_rx_mat.to_dense()
+            bc_ry_mat = bc_ry_mat.to_dense()
+            int_mat = int_mat.to_dense()
+            self.F00 = self.F00.to_dense()
+            self.F01 = self.F01.to_dense()
+            self.F10 = self.F10.to_dense()
+            self.F11 = self.F11.to_dense()
 
         mat_list = [bc_btm_mat, bc_lx_mat, bc_ly_mat, bc_rx_mat, bc_ry_mat, int_mat]
         self.graph_info = [mat_list, joints, coo_diff, shapes]
@@ -132,6 +138,7 @@ class TrainerRobot(Trainer):
         # left_data[:left_data.shape[0]//2, :] = -0.1
         # right_data[:right_data.shape[0]//2, :] = 0.1
         self.data_X = np.concatenate((left_data, right_data), axis=1)
+        self.data_Y = self.data_X
         self.train_loader, self.test_loader = self.shuffle_data()
         self.model = RobotNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
@@ -156,7 +163,6 @@ class TrainerRobot(Trainer):
             source: numpy array (n,)
 
         """
-        # source = np.repeat(np.expand_dims(source, axis=0), 3000, axis=0)
         source = np.expand_dims(source, axis=0)
         source = torch.tensor(source, dtype=torch.float)
         solver = RobotSolver(self.args, self.graph_info)
@@ -166,9 +172,9 @@ class TrainerRobot(Trainer):
         if model is not None:
             solver.reset_parameters(source, model)
 
-        # optimizer = optim.Adam(solver.parameters(), lr=1e-2)
-        optimizer = optim.LBFGS(solver.parameters(), lr=1e-1, max_iter=20, history_size=100)
-        max_epoch = 1000
+        optimizer = optim.SGD(solver.parameters(), lr=1.*1e-4)
+        # optimizer = optim.LBFGS(solver.parameters(), lr=1e-1, max_iter=20, history_size=100)
+        max_epoch = 100000
         tol = 1e-10
         loss_pre, loss_crt = 0, 0
         for epoch in range(max_epoch):
@@ -176,36 +182,99 @@ class TrainerRobot(Trainer):
                 optimizer.zero_grad()
                 solution = solver(source)
                 loss = self.loss_function(source, solution)
-                loss.backward()  # (create_graph=True, retain_graph=True)
+                loss.backward()  # Alex: (create_graph=True, retain_graph=True)
                 return loss
-            optimizer.zero_grad()
+ 
             solution = solver(source)
             loss = self.loss_function(source, solution)
             print("Optimization for ground truth, loss is", loss.data.numpy())
-            #TODO(Tianju)
-            loss.backward()
             optimizer.step(closure)
             loss_pre = loss_crt
             loss_crt = loss.data.numpy()
             if (loss_pre - loss_crt)**2 < tol:
                 break
 
-        # return torch.autograd.grad(objective(solver(source)), control_params)[0]
+        # Alex: return torch.autograd.grad(objective(solver(source)), control_params)[0]
         return solution[0].data.numpy()
 
 
+    def forward_prediction_differentiable(self, source, model=None):
+        source = np.expand_dims(source, axis=0)
+        source = torch.tensor(source, requires_grad=True, dtype=torch.float)
+        solver = RobotSolver(self.args, self.graph_info, manual=True)
+        solution = solver(source)
+        L = self.loss_function(source, solution)
+
+        if model is not None:
+            solver.reset_parameters(source, model)
+
+        max_epoch = 100000
+        tol = 1e-10
+        alpha = 1e-4
+        loss_pre, loss_crt = 0, 0 
+
+        J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+        for i in range(max_epoch):
+            solver.para = solver.para - alpha*J
+            solution = solver(source)
+            L = self.loss_function(source, solution)
+            J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+            print("Optimization for ground truth, loss is", L.data.numpy())         
+            loss_pre = loss_crt
+            loss_crt = L.data.numpy()
+            if (loss_pre - loss_crt)**2 < tol:
+                break
+
+        return solution[0].data.numpy()
+
+
+    def forward_prediction_differentiable_N(self, source, model=None):
+        source = np.expand_dims(source, axis=0)
+        source = torch.tensor(source, requires_grad=True, dtype=torch.float)
+        solver = RobotSolver(self.args, self.graph_info, manual=True)
+        solution = solver(source)
+        L = self.loss_function(source, solution)
+
+        if model is not None:
+            solver.reset_parameters(source, model)
+
+        max_epoch = 100000
+        tol = 1e-5
+        alpha = 0.1
+        loss_pre, loss_crt = 0, 0 
+
+        J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+        H_inv = get_hessian_inv(J, solver.para)
+        for i in range(max_epoch):
+            solver.para = solver.para - alpha*torch.matmul(H_inv, J)
+            solution = solver(source)
+            L = self.loss_function(source, solution)
+            J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+            H_inv = get_hessian_inv(J, solver.para)
+            print("Optimization for ground truth, loss is", L.data.numpy())         
+            loss_pre = loss_crt
+            loss_crt = L.data.numpy()
+            if (loss_pre - loss_crt)**2 < tol:
+                break
+
+        final = torch.autograd.grad(solution.mean(), source)[0]
+        print(final)
+
+        return solution[0].data.numpy()
+
     def debug(self):       
-        left_data = 0.1*np.ones(self.args.input_size//2)
-        right_data = -0.1*np.ones(self.args.input_size//2)
+        left_data = 0.01*np.ones(self.args.input_size//2)
+        right_data = -0.01*np.ones(self.args.input_size//2)
         # left_data[len(left_data)//2:] = -0.1
         # right_data[len(right_data)//2:] = 0.1
 
-        source = np.concatenate((left_data, right_data))
-        solution = self.forward_prediction(source)
-        scalar_field_paraview(self.args, solution, self.poisson, "gt")
-
         self.model = RobotNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_sss'))
+
+        source = np.concatenate((left_data, right_data))
+        solution = self.forward_prediction_differentiable(source, self.model)
+        scalar_field_paraview(self.args, solution, self.poisson, "gt")
+
         source = torch.tensor(source, dtype=torch.float).unsqueeze(0)
         solution = self.model(source)
         loss = self.loss_function(source, solution)
@@ -213,7 +282,12 @@ class TrainerRobot(Trainer):
         scalar_field_paraview(self.args, solution.data.numpy().flatten(), self.poisson, "debug")
 
 
+def get_hessian_inv(J, x):
+    H = torch.stack([torch.autograd.grad(J[i], x, retain_graph=True)[0] for i in range(len(J))])
+    H_inv = H.inverse()
+    return H_inv
+
 if __name__ == "__main__":
     args = arguments.args
-    trainer = TrainerRobot(args)
-    trainer.run()
+    trainer = TrainerRobot(args, True)
+    trainer.debug()

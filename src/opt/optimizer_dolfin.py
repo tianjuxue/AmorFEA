@@ -28,16 +28,19 @@ class OptimizerDolfinIdentification(OptimizerDolfin):
     Level 2
     """
     def __init__(self, args):
-        super(OptimizerDolfin, self).__init__(args)
-        self.target_dof, self.target_u = target_solution_id(self.args, self.poisson)
+        super(OptimizerDolfinIdentification, self).__init__(args)
+        self.target_dof_noise_free, self.target_u_noise_free = target_solution_id(self.args, self.poisson)
+        self.sigma = 0.
+        self.add_noise()
 
     def optimize(self):
-        x_initial = np.array([0.5, 0.5, 0.5, 0.5])
+        x_initial = np.array([0., 0., 0.5, 0.5])
+        # x_initial = np.zeros(4)
         options = {'eps': 1e-15, 'maxiter': 1000, 'disp': True} # CG > BFGS > Newton-CG
         start = time.time()
         res = opt.minimize(fun=self._objective,
                            x0=x_initial, 
-                           method='BFGS', 
+                           method='CG', 
                            jac=self._derivative,
                            callback=None,
                            options=options)
@@ -45,6 +48,14 @@ class OptimizerDolfinIdentification(OptimizerDolfin):
         print("Time elasped {}".format(end - start))
         return res.x
  
+
+    def add_noise(self):
+        noise = self.sigma*torch.normal(torch.zeros(self.target_dof_noise_free.shape[1]), 1)
+        self.target_dof = self.target_dof_noise_free + noise
+        self.target_u = da.Function(self.poisson.V)
+        self.target_u.vector()[:] = self.target_u_noise_free.vector()[:] + noise.data.numpy()
+
+
     def debug(self):
         truth_map = []
         coo = torch.tensor(self.poisson.coo_dof, dtype=torch.float)
@@ -74,7 +85,7 @@ class OptimizerDolfinReconstruction(OptimizerDolfin):
         start = time.time()
         res = opt.minimize(fun=self._objective,
                            x0=x_initial, 
-                           method='BFGS', 
+                           method='CG', 
                            jac=self._derivative,
                            callback=None,
                            options=options)
@@ -132,7 +143,7 @@ class OptimizerDolfinIdentificationSurrogate(OptimizerDolfinIdentification, Opti
         L_diff = diff*tmp
         # diff = (solution - self.target_dof)**2
 
-        L = L_diff.sum()   
+        L = 0.5*L_diff.sum()   
         return L
 
 
@@ -219,7 +230,7 @@ class OptimizerDolfinReconstructionAdjoint(OptimizerDolfinReconstruction, Optimi
 '''Helpers'''
 def target_solution_id(args, pde):
     pde.source = da.Expression("k*100*exp( (-(x[0]-x0)*(x[0]-x0) -(x[1]-x1)*(x[1]-x1)) / (2*0.01*l) )", 
-                               k=1, l=1, x0=0.9, x1=0.1, degree=3)
+                               k=1, l=1, x0=0.1, x1=0.1, degree=3)
     # pde.source = da.interpolate(pde.source, pde.V)
     # save_solution(args, pde.source, 'opt_fem_f')
 
@@ -231,7 +242,7 @@ def target_solution_id(args, pde):
 def target_solution_rc(args, pde):
     # pde.source = da.Expression(("100*sin(2*pi*x[0])"),  degree=3)
     pde.source = da.Expression("k*100*exp( (-(x[0]-x0)*(x[0]-x0) -(x[1]-x1)*(x[1]-x1)) / (2*0.01*l) )", 
-                               k=1, l=1, x0=0.75, x1=0.75, degree=3)
+                               k=1, l=1, x0=0.1, x1=0.1, degree=3)
     source_vec = da.interpolate(pde.source, pde.V)
     save_solution(args, source_vec, 'opt_fem_f')
     u = pde.solve_problem_variational_form()
@@ -243,7 +254,7 @@ def produce_solution(pde, x):
     u = pde.solve_problem_variational_form()
     return u
 
-def run(args):
+def run_rec(args):
     alpha_list = [1e-0, 1e-3, 1e-6]
     optimizer_nn = OptimizerDolfinReconstructionSurrogate(args)
     optimizer_ad = OptimizerDolfinReconstructionAdjoint(args)
@@ -260,20 +271,27 @@ def run(args):
         print("true error ad", optimizer_ad._objective(x_ad))
         print('\n')
 
+def run_id(args):
+    sigma_list = [1e-3, 1e-2, 1e-1]
+    optimizer_nn = OptimizerDolfinIdentificationSurrogate(args)
+    optimizer_ad = OptimizerDolfinIdentificationAdjoint(args)
+    for sigma in sigma_list:
+        optimizer_nn.sigma = sigma
+        optimizer_nn.add_noise()
+        x_nn = optimizer_nn.optimize()
+        print('nn optimized x is', x_nn)
+
+        optimizer_ad.sigma = sigma
+        optimizer_ad.add_noise()
+        x_ad = optimizer_ad.optimize()
+        print('ad optimized x is', x_ad)
+        print('\n')
+
+
 if __name__ == '__main__':
     args = arguments.args
-    run(args)
-
-    # optimizer_nn = OptimizerDolfinReconstructionSurrogate(args)
-    # x_nn = optimizer_nn.optimize()
-    # scalar_field_paraview(args, x_nn, optimizer_nn.poisson, "opt_nn_f")
-
-    # optimizer_ad = OptimizerDolfinReconstructionAdjoint(args)
-    # x_ad = optimizer_ad.optimize()
-    # scalar_field_paraview(args, x_ad, optimizer_ad.poisson, "opt_ad_f")
-
-    # print("true error nn", optimizer_ad._objective(x_nn))
-    # print("true error ad", optimizer_ad._objective(x_ad))
+    # run_rec(args)
+    run_id(args)
 
     # u = produce_solution(optimizer.poisson, x)
     # save_solution(args, u, 'opt_nn_u')

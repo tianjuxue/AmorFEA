@@ -34,4 +34,7 @@ import sys
 import numpy as np
 np.set_printoptions(threshold=sys.maxsize, linewidth=1000, suppress=True)
 np.set_printoptions(precision=3)
-np.random.seed(0)
+np.random.seed(1)
+
+import torch
+torch.manual_seed(1)
