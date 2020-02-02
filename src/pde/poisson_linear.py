@@ -33,8 +33,10 @@ class PoissonLinear(Poisson):
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
 
-        self.source = fa.Expression(("sin(2*pi*x[0])"),  degree=3)
-        self.source = fa.Constant(1.)
+        # self.source = fa.Expression(("cos(pi*x[0])*cos(pi*x[1])"),  degree=3)
+        self.source = fa.Expression(("x[0]*x[0] + x[1]*x[1]"),  degree=3)
+        self.source = fa.interpolate(self.source, self.V)
+        # self.source = fa.Constant(1.)
 
         self.bcs = []
         boundary_fn = fa.Constant(0.)
@@ -126,4 +128,5 @@ if __name__ == '__main__':
     args = arguments.args
     pde = PoissonLinear(args)
     u = pde.solve_problem_variational_form()
-    save_solution(args, u, 'u')
+    save_solution(args, u, 'linear/u')
+    save_solution(args, pde.source, 'linear/f')

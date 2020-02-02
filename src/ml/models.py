@@ -158,6 +158,12 @@ class RobotNetwork(nn.Module):
         int_u = self.fcc2(bc_u)
         return [lx_u, ly_u, rx_u, ry_u, bc_u], int_u
 
+    # def get_para_data(self):
+    #     angles = robot_network.get_angles(source)
+    #     self.para.data[:self.shapes[0]//2] = angles.squeeze()
+    #     _, int_u = robot_network.get_disp(source)
+    #     self.para.data[self.shapes[0]//2:] = int_u.squeeze()        
+
     def forward(self, x):
         [lx_u, ly_u, rx_u, ry_u, bc_u], int_u = self.get_disp(x)
         int_u = batch_mat_vec(self.mat_list[-1].transpose(0, 1), int_u)
@@ -166,24 +172,26 @@ class RobotNetwork(nn.Module):
 
 
 class RobotSolver(nn.Module):
-    def __init__(self, args, graph_info, manual=False):
+    def __init__(self, args, graph_info):
         super(RobotSolver, self).__init__()
         self.args = args
         self.mat_list, self.joints, self.coo_diff, self.shapes = graph_info
 
         self.para_angles = torch.zeros(self.shapes[0]//2) + 0.5*np.pi
         self.para_disp = torch.zeros(self.shapes[1])
-        if manual:
-            self.para = torch.cat((self.para_angles, self.para_disp))
-            self.para.requires_grad = True
-        else:
-            self.para = Parameter(torch.cat((self.para_angles, self.para_disp)))
 
-    def reset_parameters(self, source, robot_network):
+        self.para = torch.cat((self.para_angles, self.para_disp))
+        self.para.requires_grad = True
+        self.para = Parameter(self.para)
+
+    def reset_parameters_network(self, source, robot_network):
         angles = robot_network.get_angles(source)
         self.para.data[:self.shapes[0]//2] = angles.squeeze()
         _, int_u = robot_network.get_disp(source)
         self.para.data[self.shapes[0]//2:] = int_u.squeeze()
+
+    def reset_parameters_data(self, para_data):
+        self.para.data = para_data
 
     def forward(self, x):
         self.para_angles = self.para[:self.shapes[0]//2]

@@ -156,7 +156,7 @@ class TrainerRobot(Trainer):
             # torch.save(self.model.state_dict(), self.args.root_path + '/' +
             #            self.args.model_path + '/' + self.poisson.name + '/model_' + str(0))
 
-    def forward_prediction(self, source, model=None):
+    def forward_prediction(self, source, model=None, para_data=None):
         """Serves as ground truth computation
 
         Args:
@@ -170,10 +170,13 @@ class TrainerRobot(Trainer):
         # model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/solver')) 
 
         if model is not None:
-            solver.reset_parameters(source, model)
+            solver.reset_parameters_network(source, model)
 
-        optimizer = optim.SGD(solver.parameters(), lr=1.*1e-4)
-        # optimizer = optim.LBFGS(solver.parameters(), lr=1e-1, max_iter=20, history_size=100)
+        if para_data is not None:
+            solver.reset_parameters_data(para_data)
+
+        # optimizer = optim.SGD(solver.parameters(), lr=1.*1e-4)
+        optimizer = optim.LBFGS(solver.parameters(), lr=1e-1, max_iter=20, history_size=100)
         max_epoch = 100000
         tol = 1e-10
         loss_pre, loss_crt = 0, 0
@@ -187,7 +190,9 @@ class TrainerRobot(Trainer):
  
             solution = solver(source)
             loss = self.loss_function(source, solution)
-            print("Optimization for ground truth, loss is", loss.data.numpy())
+            # print("Optimization for ground truth, loss is", loss.data.numpy())
+            assert(not np.isnan(loss.data.numpy()))
+
             optimizer.step(closure)
             loss_pre = loss_crt
             loss_crt = loss.data.numpy()
@@ -195,72 +200,8 @@ class TrainerRobot(Trainer):
                 break
 
         # Alex: return torch.autograd.grad(objective(solver(source)), control_params)[0]
-        return solution[0].data.numpy()
+        return solution[0].data.numpy(), solver.para.data
 
-
-    def forward_prediction_differentiable(self, source, model=None):
-        source = np.expand_dims(source, axis=0)
-        source = torch.tensor(source, requires_grad=True, dtype=torch.float)
-        solver = RobotSolver(self.args, self.graph_info, manual=True)
-        solution = solver(source)
-        L = self.loss_function(source, solution)
-
-        if model is not None:
-            solver.reset_parameters(source, model)
-
-        max_epoch = 100000
-        tol = 1e-10
-        alpha = 1e-4
-        loss_pre, loss_crt = 0, 0 
-
-        J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
-        for i in range(max_epoch):
-            solver.para = solver.para - alpha*J
-            solution = solver(source)
-            L = self.loss_function(source, solution)
-            J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
-            print("Optimization for ground truth, loss is", L.data.numpy())         
-            loss_pre = loss_crt
-            loss_crt = L.data.numpy()
-            if (loss_pre - loss_crt)**2 < tol:
-                break
-
-        return solution[0].data.numpy()
-
-
-    def forward_prediction_differentiable_N(self, source, model=None):
-        source = np.expand_dims(source, axis=0)
-        source = torch.tensor(source, requires_grad=True, dtype=torch.float)
-        solver = RobotSolver(self.args, self.graph_info, manual=True)
-        solution = solver(source)
-        L = self.loss_function(source, solution)
-
-        if model is not None:
-            solver.reset_parameters(source, model)
-
-        max_epoch = 100000
-        tol = 1e-5
-        alpha = 0.1
-        loss_pre, loss_crt = 0, 0 
-
-        J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
-        H_inv = get_hessian_inv(J, solver.para)
-        for i in range(max_epoch):
-            solver.para = solver.para - alpha*torch.matmul(H_inv, J)
-            solution = solver(source)
-            L = self.loss_function(source, solution)
-            J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
-            H_inv = get_hessian_inv(J, solver.para)
-            print("Optimization for ground truth, loss is", L.data.numpy())         
-            loss_pre = loss_crt
-            loss_crt = L.data.numpy()
-            if (loss_pre - loss_crt)**2 < tol:
-                break
-
-        final = torch.autograd.grad(solution.mean(), source)[0]
-        print(final)
-
-        return solution[0].data.numpy()
 
     def debug(self):       
         left_data = 0.01*np.ones(self.args.input_size//2)
@@ -272,7 +213,7 @@ class TrainerRobot(Trainer):
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_sss'))
 
         source = np.concatenate((left_data, right_data))
-        solution = self.forward_prediction_differentiable(source, self.model)
+        solution = self.adjoint_method(source, model=self.model)
         scalar_field_paraview(self.args, solution, self.poisson, "gt")
 
         source = torch.tensor(source, dtype=torch.float).unsqueeze(0)

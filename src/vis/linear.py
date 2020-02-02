@@ -7,8 +7,8 @@ from ..opt.optimizer_robot import heart_shape
 from .. import arguments
 
 
-def plot_linear(args):
-    path = args.root_path + '/' + args.solutions_path + '/linear/u000000.vtu'  
+def plot_sol(args, name):
+    path = args.root_path + '/' + args.solutions_path + '/linear/' + name + '000000.vtu'  
     reader = vtk.vtkXMLUnstructuredGridReader()
     reader.SetFileName(path)
     reader.Update()
@@ -18,6 +18,26 @@ def plot_linear(args):
     x = vtk_to_numpy(points.GetData())
     u = vtk_to_numpy(data.GetPointData().GetVectors('u'))
     colors = u
+    triangles =  vtk_to_numpy(data.GetCells().GetData())
+    ntri = triangles.size//4  # number of cells
+    tri = np.take(triangles, [n for n in range(triangles.size) if n%4 != 0]).reshape(ntri,3)    
+    fig = plt.figure(figsize=(8, 8))
+    plt.gca().set_aspect('equal')
+    plt.axis('off')
+    tpc = plt.tripcolor(x[:,0], x[:,1], tri, colors, shading='flat', vmin=None, vmax=None)
+    cb = plt.colorbar(tpc, aspect=10)
+    cb.ax.tick_params(labelsize=20)
+
+
+def plot_mesh(args):
+    path = args.root_path + '/' + args.solutions_path + '/linear/u000000.vtu'  
+    reader = vtk.vtkXMLUnstructuredGridReader()
+    reader.SetFileName(path)
+    reader.Update()
+    data = reader.GetOutput()
+    points = data.GetPoints()
+    npts = points.GetNumberOfPoints()
+    x = vtk_to_numpy(points.GetData())
     triangles =  vtk_to_numpy(data.GetCells().GetData())
     ntri = triangles.size//4  # number of cells
     tri = np.take(triangles, [n for n in range(triangles.size) if n%4 != 0]).reshape(ntri,3)    
@@ -51,6 +71,7 @@ def plot_L(args):
 
 if __name__ == '__main__':
     args = arguments.args
-    plot_L(args)
-    # plot_linear(args)
+    # plot_L(args)
+    plot_sol(args, 'f')
+    plot_sol(args, 'u')
     plt.show()

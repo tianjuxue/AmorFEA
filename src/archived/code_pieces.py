@@ -188,3 +188,68 @@ for index, neighbors in enumerate(adjacency_list):
                     if value != 0:
                         C_np.append(((i, j, k, l), value))
 print(len(C_np))
+
+
+def forward_prediction_differentiable(self, source, model=None):
+    source = np.expand_dims(source, axis=0)
+    source = torch.tensor(source, requires_grad=True, dtype=torch.float)
+    solver = RobotSolver(self.args, self.graph_info, manual=True)
+    solution = solver(source)
+    L = self.loss_function(source, solution)
+
+    if model is not None:
+        solver.reset_parameters(source, model)
+
+    max_epoch = 100000
+    tol = 1e-10
+    alpha = 1e-4
+    loss_pre, loss_crt = 0, 0 
+
+    J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+    for i in range(max_epoch):
+        solver.para = solver.para - alpha*J
+        solution = solver(source)
+        L = self.loss_function(source, solution)
+        J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+        print("Optimization for ground truth, loss is", L.data.numpy())         
+        loss_pre = loss_crt
+        loss_crt = L.data.numpy()
+        if (loss_pre - loss_crt)**2 < tol:
+            break
+
+    return solution[0].data.numpy()
+
+
+def forward_prediction_differentiable_N(self, source, model=None):
+    source = np.expand_dims(source, axis=0)
+    source = torch.tensor(source, requires_grad=True, dtype=torch.float)
+    solver = RobotSolver(self.args, self.graph_info, manual=True)
+    solution = solver(source)
+    L = self.loss_function(source, solution)
+
+    if model is not None:
+        solver.reset_parameters(source, model)
+
+    max_epoch = 100000
+    tol = 1e-5
+    alpha = 0.1
+    loss_pre, loss_crt = 0, 0 
+
+    J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+    H_inv = get_hessian_inv(J, solver.para)
+    for i in range(max_epoch):
+        solver.para = solver.para - alpha*torch.matmul(H_inv, J)
+        solution = solver(source)
+        L = self.loss_function(source, solution)
+        J = torch.autograd.grad(L, solver.para, create_graph=True)[0]
+        H_inv = get_hessian_inv(J, solver.para)
+        print("Optimization for ground truth, loss is", L.data.numpy())         
+        loss_pre = loss_crt
+        loss_crt = L.data.numpy()
+        if (loss_pre - loss_crt)**2 < tol:
+            break
+
+    final = torch.autograd.grad(solution.mean(), source)[0]
+    print(final)
+
+    return solution[0].data.numpy()

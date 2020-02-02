@@ -290,9 +290,8 @@ def run_id(args):
 
 if __name__ == '__main__':
     args = arguments.args
-    # run_rec(args)
-    run_id(args)
+    run_rec(args)
+    # run_id(args)
 
     # u = produce_solution(optimizer.poisson, x)
     # save_solution(args, u, 'opt_nn_u')
-    
