@@ -66,56 +66,57 @@ class OptimizerRobotTrajectory(OptimizerRobot):
 class OptimizerRobotPoint(OptimizerRobot):
     def __init__(self, args):
         super(OptimizerRobotPoint, self).__init__(args)
-        # self.target_x1 = -0
-        # self.target_x2 = -2
-        self.target_x1 = 1
-        self.target_x2 = 0
+        self.target_point = np.array([0, -2])
         self.para_data = None
 
-    def _opt(self, alpha=1e-2, x_initial=None, max_iter=1000, log_interval=100):
+    def _opt(self, alpha=1e-2, x_initial=None, maxiter=200, log_interval=20):
         if x_initial is None:
             x_initial = np.zeros(self.args.input_size)
  
         x = x_initial
         start = time.time()
-        wall_time = []
+        wall_time = [0]
         objective = []
-        source = []
-        for i in range(max_iter):
+        source = [x]
+        for i in range(maxiter):
             obj = self._objective(x)
             der = self._derivative(x)
             x = x - alpha*der
             if i % log_interval == 0:
-                print("loop {} obj {}\n".format(i, obj))
+                print("loop {} obj {}".format(i, obj))
                 wall_time.append(time.time()-start)
                 objective.append(obj)
-                source.append(x)
+                source.append(x)            
         x_opt = x
-        # x_opt = x_opt.reshape(-1, self.args.input_size)
-        # source = torch.tensor(x_opt, dtype=torch.float)
-        # solution = self.model(source)
+        objective.append(self._objective(x))
         return x_opt, np.asarray(wall_time), np.asarray(objective), np.asarray(source)
 
     def L_dist(self, solution):
-        L = (solution[0][self.tip_x1_index] - self.target_x1)**2 \
-           +(solution[0][self.tip_x2_index] - self.target_x2)**2    
+        L = (solution[0][self.tip_x1_index] - self.target_point[0])**2 \
+           +(solution[0][self.tip_x2_index] - self.target_point[1])**2    
         return L     
 
     def evaluate(self, source):
         solution, _ = self.trainer.forward_prediction(source, model=self.model)
         L = self.L_dist(np.expand_dims(solution, axis=0)) 
-        return L
+        return L, solution
 
     def batch_evaluate(self, source):
-        L = [self.evaluate(s) for s in source]
-        return np.asarray(L)
+        Ls = []
+        sols = []
+        for s in source:
+            L, sol = self.evaluate(s)
+            Ls.append(L)
+            sols.append(sol)
+        return np.asarray(Ls), np.asarray(sols)
+
 
 class OptimizerRobotPointSurrogate(OptimizerRobotPoint):
     def __init__(self, args):
         super(OptimizerRobotPointSurrogate, self).__init__(args)
 
-    def optimize(self):
-        return self._opt(alpha=1e-2, x_initial=None, max_iter=1000, log_interval=100)
+    def optimize(self, alpha=1e-2, x_initial=None, maxiter=1000, log_interval=100):
+        return self._opt(alpha=alpha, x_initial=x_initial, maxiter=maxiter, log_interval=log_interval)
 
     def _obj(self, source):
         source = source.unsqueeze(0)
@@ -128,13 +129,12 @@ class OptimizerRobotPointAdjoint(OptimizerRobotPoint):
     def __init__(self, args):
         super(OptimizerRobotPointAdjoint, self).__init__(args)
 
-    def optimize(self, alpha=2*1e-2, x_initial=None):
-        return self._opt(alpha=alpha, x_initial=x_initial, max_iter=20, log_interval=1)
+    def optimize(self, alpha=2*1e-2, x_initial=None, maxiter=20, log_interval=1):
+        return self._opt(alpha=alpha, x_initial=x_initial, maxiter=maxiter, log_interval=log_interval)
 
     def _objective(self, source):
         _, self.para_data = self.trainer.forward_prediction(source, model=None, para_data=self.para_data)
         _, _, L = self._objective_partials(source, self.para_data) 
-        # print("distance loss is", L)
         return L
 
     def _derivative(self, source):
@@ -181,41 +181,19 @@ class OptimizerRobotPointAdjoint(OptimizerRobotPoint):
         return dcdx.data.numpy(), dcdy.data.numpy()        
 
 
-class OptimizerRobotPointMixed(OptimizerRobotPoint):
-
-    def optimize(self):
-        # self.optimize(method_flag=1)
-          
-        optimizer_nn = OptimizerRobotPointSurrogate(self.args)
-        x_opt, wall_time_nn, objective_nn, source_nn = optimizer_nn.optimize()
-        solver = RobotSolver(self.args, self.trainer.graph_info)
-        solver.reset_parameters_network(torch.tensor(x_opt, dtype=torch.float).unsqueeze(0), optimizer_nn.model)
-        para_data = solver.para.data
-
-        optimizer_ad = OptimizerRobotPointAdjoint(self.args)
-        optimizer_ad.para_data = para_data 
-        x_opt, wall_time_ad, objective_ad, source_ad = optimizer_ad.optimize(alpha=1e-2, x_initial=x_opt)
-
-        wall_time_mix = np.concatenate((wall_time_nn, wall_time_ad + wall_time_nn[-1]))
-        objective_mix = np.concatenate((objective_nn, objective_ad))
-        source_mix = np.concatenate((source_nn, source_ad))
-
-        return x_opt, wall_time_mix, objective_mix, source_mix
-
 '''Helpers'''
-def x_para(t):
-    return 16*np.sin(t)**3
-
-def y_para(t):
-    return 13*np.cos(t) - 5*np.cos(2*t) - 2*np.cos(3*t) - np.cos(4*t) - 5
-
 def heart_shape():
+    def x_para(t):
+        return 16*np.sin(t)**3
+    def y_para(t):
+        return 13*np.cos(t) - 5*np.cos(2*t) - 2*np.cos(3*t) - np.cos(4*t) - 5
     vertical_dist = 2
     norm_factor = vertical_dist / (y_para(0) - y_para(np.pi))
     t = np.linspace(0, 2*np.pi, 31)
     x = norm_factor*x_para(t)
     y = norm_factor*y_para(t)
     return np.asarray([x, y])
+
 
 def plot_hs():
     x, y = heart_shape()
@@ -227,33 +205,146 @@ def plot_hs():
     plt.plot(x, y)
 
 
-def run():
+def circle_shape():
+    t = np.linspace(0, np.pi, 4)
+    x = 2*np.cos(t - np.pi/2.)
+    y = 2*np.sin(t - np.pi/2.)
+    return np.asarray([x, y])
+
+
+def run_mixed_opt(alpha_nn,
+                  alpha_ad,
+                  maxiter_nn,
+                  maxiter_ad,
+                  log_interval_nn,
+                  log_interval_ad,
+                  optimizer_nn,
+                  optimizer_ad
+                  ):
+    x_opt, wall_time_nn, objective_nn, source_nn = optimizer_nn.optimize(alpha=alpha_nn, 
+                                                                         x_initial=None, 
+                                                                         maxiter=maxiter_nn, 
+                                                                         log_interval=log_interval_nn)
+    solver = RobotSolver(optimizer_nn.args, optimizer_nn.trainer.graph_info)
+    solver.reset_parameters_network(torch.tensor(x_opt, dtype=torch.float).unsqueeze(0), optimizer_nn.model)
+    para_data = solver.para.data
+    optimizer_ad.para_data = para_data 
+    x_opt, wall_time_ad, objective_ad, source_ad = optimizer_ad.optimize(alpha=alpha_ad, 
+                                                                         x_initial=x_opt, 
+                                                                         maxiter=maxiter_ad, 
+                                                                         log_interval=log_interval_ad)
+
+    wall_time_mix = np.concatenate((wall_time_nn, wall_time_ad[1:] + wall_time_nn[-1]))
+    objective_mix = np.concatenate((objective_nn, objective_ad[1:]))
+    source_mix = np.concatenate((source_nn, source_ad[1:]))
+    return x_opt, wall_time_mix, objective_mix, source_mix
+
+
+def run_single_opt(alpha,
+                   maxiter,
+                   log_interval,
+                   optimizer
+               ):
+    x_opt, wall_time, objective, source = optimizer.optimize(alpha=alpha, 
+                                                             x_initial=None, 
+                                                             maxiter=maxiter, 
+                                                             log_interval=log_interval)
+
+    return x_opt, wall_time, objective, source
+
+
+def run_one_case(args,
+                 alpha_nn,
+                 alpha_ad1,
+                 alpha_ad2,
+                 maxiter_nn,
+                 maxiter_ad1,
+                 maxiter_ad2,
+                 log_interval_nn,
+                 log_interval_ad1,
+                 log_interval_ad2,
+                 target_point,
+                 case_number
+                 ):
+
+    print("\ncase number {}".format(case_number))
+
     optimizer_nn = OptimizerRobotPointSurrogate(args)
+    optimizer_nn.target_point = target_point  
+
     optimizer_ad = OptimizerRobotPointAdjoint(args)
-    optimizer_mix = OptimizerRobotPointMixed(args)
+    optimizer_ad.target_point = target_point
 
-    # x_nn, wall_time_nn, objective_nn = optimizer_nn.optimize()
-    x_ad, wall_time_ad, objective_ad, source_ad = optimizer_ad.optimize(alpha=1e-2)
-    x_mix, wall_time_mix, objective_mix, source_mix = optimizer_mix.optimize()
+    # x_nn, wall_time_nn, objective_nn, source_nn = run_single_opt(alpha_nn, maxiter_nn, log_interval_nn, optimizer_nn)
+    _, wall_time_ad, objective_ad, source_ad = run_single_opt(alpha_ad1, maxiter_ad1, log_interval_ad1, optimizer_ad)
+    print("\n")
+    _, wall_time_mix, objective_mix, source_mix = run_mixed_opt(alpha_nn,
+                                                                alpha_ad2,
+                                                                maxiter_nn,
+                                                                maxiter_ad2,
+                                                                log_interval_nn,
+                                                                log_interval_ad2,
+                                                                optimizer_nn,
+                                                                optimizer_ad)
 
-    # print("true error nn", optimizer_nn.evaluate(x_nn))
-    print("true error ad", optimizer_ad.evaluate(x_ad))
-    print("true error mix", optimizer_mix.evaluate(x_mix))
 
-    nn_number = 10
-    objective_mix[:nn_number] = optimizer_mix.batch_evaluate(source_mix[:nn_number])
+    nn_number = maxiter_nn//log_interval_nn
+    objective_mix[:nn_number + 1], _ = optimizer_nn.batch_evaluate(source_mix[:nn_number + 1])
+    _, optimal_solution = optimizer_nn.evaluate(source_mix[-1])
+    
+    # print("true error nn", objective_nn[-1])
+    print("true error ad", objective_ad[-1])
+    print("true error mix", objective_mix[-1])
 
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.plot(wall_time_ad, objective_ad, linestyle='--', marker='o', color='blue')
-    ax.plot(wall_time_mix[:nn_number], objective_mix[:nn_number], linestyle='--', marker='o', color='red')
-    ax.plot(wall_time_mix[nn_number:], objective_mix[nn_number:], linestyle='--', marker='o', color='blue')
-    # ax.set_xscale('log')
-    # ax.set_yscale('log')
-    plt.show()
+    np.savez(args.root_path + '/' + args.numpy_path 
+            + '/robot/deploy/case' + str(case_number) + '.npz',  
+            wall_time_ad=wall_time_ad,
+            objective_ad=objective_ad,
+            nn_number=nn_number,
+            wall_time_mix=wall_time_mix,
+            objective_mix=objective_mix,
+            target_point=target_point
+            )
+    scalar_field_paraview(args, optimal_solution, optimizer_nn.trainer.poisson, "/robot/deploy/u" + str(case_number))
+
+
+def run(args):
+    # Manully tuned best parameter
+    # target_coos = heart_shape()
+    # target_coos = target_coos[:, [3,7,11,15]]
+
+    target_coos = circle_shape()
+    # alpha_ad1_list = [1e-3, 1e-3, 1e-3, 1e-3]
+    # alpha_nn_list = [1e-3, 1e-3, 1e-3, 1e-3]
+    # alpha_ad2_list = [1e-3, 1e-3, 1e-3, 1e-3]
+    
+    alpha_ad1_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
+    alpha_nn_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
+    alpha_ad2_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
+
+    maxiter_ad1_list = [20, 20, 20, 20]
+    maxiter_nn_list = [400, 400, 4000, 6000]
+    maxiter_ad2_list = [20, 20, 20, 20]
+    
+    log_interval_ad1_list = [1, 1, 1, 1]  
+    log_interval_nn_list = [40, 40, 400, 600]
+    log_interval_ad2_list = [1, 1, 1, 1]
+
+    for i in range(3, 4):
+        run_one_case(args,
+                     alpha_nn_list[i],
+                     alpha_ad1_list[i],
+                     alpha_ad2_list[i],
+                     maxiter_nn_list[i],
+                     maxiter_ad1_list[i],
+                     maxiter_ad2_list[i] ,
+                     log_interval_nn_list[i],
+                     log_interval_ad1_list[i],
+                     log_interval_ad2_list[i],
+                     target_coos[:, i],
+                     i)
 
 
 if __name__ == '__main__':
     args = arguments.args
-    # plot_hs()
-    run()
+    run(args)

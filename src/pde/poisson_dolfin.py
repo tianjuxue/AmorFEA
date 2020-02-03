@@ -60,9 +60,10 @@ class PoissonDolfin(Poisson):
         self.V = fa.FunctionSpace(self.mesh, 'P', 1)
         
         self.source = da.Expression(("100*sin(2*pi*x[0])"),  degree=3)
-        self.source = da.Expression("k*100*exp( (-(x[0]-x0)*(x[0]-x0) -(x[1]-x1)*(x[1]-x1)) / (2*0.01*l) )", 
-                               k=1, l=1, x0=0.9, x1=0.1, degree=3)
-        # self.source = da.Constant(0)
+        # self.source = da.Expression("k*100*exp( (-(x[0]-x0)*(x[0]-x0) -(x[1]-x1)*(x[1]-x1)) / (2*0.01*l) )", 
+        #                        k=1, l=1, x0=0.9, x1=0.1, degree=3)
+        # self.source = da.Constant(10)
+        self.source = da.interpolate(self.source, self.V)
  
         boundary_fn_ext = da.Constant(1.)
         boundary_fn_int = da.Constant(1.)
@@ -131,12 +132,10 @@ class PoissonDolfin(Poisson):
 if __name__ == '__main__':
     args = arguments.args
     pde = PoissonDolfin(args)
-
-    adjacency_matrix = pde.get_adjacency_matrix()
-    exit()
+    # adjacency_matrix = pde.get_adjacency_matrix()
  
     u = pde.solve_problem_variational_form()
-    save_solution(args, u, 'u')
-    # pde.debug()
+    save_solution(args, u, '/dolfin/u')
+    save_solution(args, pde.source, 'dolfin/f')
 
  

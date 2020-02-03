@@ -204,23 +204,28 @@ class TrainerRobot(Trainer):
 
 
     def debug(self):       
-        left_data = 0.01*np.ones(self.args.input_size//2)
-        right_data = -0.01*np.ones(self.args.input_size//2)
+        # left_data = 0.01*np.ones(self.args.input_size//2)
+        # right_data = -0.01*np.ones(self.args.input_size//2)
         # left_data[len(left_data)//2:] = -0.1
         # right_data[len(right_data)//2:] = 0.1
+
+        left_data = 0.1*np.ones(self.args.input_size//2)
+        right_data = -0.1*np.ones(self.args.input_size//2) 
+        left_data[:left_data.shape[0]//2] = -0.1
+        right_data[:right_data.shape[0]//2] = 0.1
 
         self.model = RobotNetwork(self.args, self.graph_info)
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + self.args.model_path + '/robot/model_sss'))
 
         source = np.concatenate((left_data, right_data))
-        solution = self.adjoint_method(source, model=self.model)
-        scalar_field_paraview(self.args, solution, self.poisson, "gt")
+        solution, _ = self.forward_prediction(source, model=self.model)
+        scalar_field_paraview(self.args, solution, self.poisson, "/robot/gt")
 
         source = torch.tensor(source, dtype=torch.float).unsqueeze(0)
         solution = self.model(source)
         loss = self.loss_function(source, solution)
         print("loss is", loss.data.numpy())
-        scalar_field_paraview(self.args, solution.data.numpy().flatten(), self.poisson, "debug")
+        # scalar_field_paraview(self.args, solution.data.numpy().flatten(), self.poisson, "debug")
 
 
 def get_hessian_inv(J, x):
