@@ -40,7 +40,7 @@ class OptimizerDolfinIdentification(OptimizerDolfin):
         start = time.time()
         res = opt.minimize(fun=self._objective,
                            x0=x_initial, 
-                           method='CG', 
+                           method='BFGS', 
                            jac=self._derivative,
                            callback=None,
                            options=options)
@@ -255,7 +255,7 @@ def produce_solution(pde, x):
     return u
 
 def run_rec(args):
-    alpha_list = [1e-0, 1e-3, 1e-6]
+    alpha_list = [1e-6, 1e-3, 1e-0]
     optimizer_nn = OptimizerDolfinReconstructionSurrogate(args)
     optimizer_ad = OptimizerDolfinReconstructionAdjoint(args)
     for alpha in alpha_list:
@@ -290,8 +290,8 @@ def run_id(args):
 
 if __name__ == '__main__':
     args = arguments.args
-    run_rec(args)
-    # run_id(args)
+    # run_rec(args)
+    run_id(args)
 
     # u = produce_solution(optimizer.poisson, x)
     # save_solution(args, u, 'opt_nn_u')

@@ -55,23 +55,16 @@ class Trainer(object):
 
             data_x = data[0].float()
             data_y = data[1].float()
-
-            self.optimizer.zero_grad()
             recon_batch = self.model(data_x)
             loss = self.loss_function(data_x, recon_batch, data_y)
-
             if batch_idx % self.args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data_x), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
                     loss.item() / len(data_x)))
 
-
-            loss.backward()
             train_loss += loss.item()
             self.optimizer.step(closure)
-
-
 
         train_loss /= len(self.train_loader.dataset)
         print('====> Epoch: {} Average loss: {:.6f}'.format(epoch, train_loss))
@@ -79,15 +72,24 @@ class Trainer(object):
 
     def test_by_loss(self, epoch):
         self.model.eval()
+        test_gap = 0
         test_loss = 0
+        test_error = 0
         with torch.no_grad():
             for i, data in enumerate(self.test_loader):
                 data_x = data[0].float()
                 data_y = data[1].float()
                 recon_batch = self.model(data_x)
                 test_loss += self.loss_function(data_x, recon_batch, data_y).item()
+                test_gap += self.amortization_gap(data_x, recon_batch, data_y).item()
+                test_error += self.normed_L2_error(data_x, recon_batch, data_y).item()
+
         test_loss /= len(self.test_loader.dataset)
+        test_gap /= len(self.test_loader.dataset)
+        test_error /= len(self.test_loader.dataset)
         print('====> Epoch: {} Test set loss: {:.6f}'.format(epoch, test_loss))
+        print('====> Epoch: {} Test set gap: {:.6f}'.format(epoch, test_gap))
+        print('====> Epoch: {} Test set error: {:.6f}'.format(epoch, test_error))
         return test_loss
 
     def FEM(self, source):
@@ -117,10 +119,9 @@ class Trainer(object):
         error = recon_batch - self.fem_solution
         tmp = batch_mat_vec(self.B_sp, error)
         tmp = tmp*error
-        mean_L2_error = tmp.sum(dim=1).sqrt().mean()
-
+        L2_error = tmp.sum(dim=1).sqrt()
+        mean_L2_error = L2_error.mean()
         print('====> Mean L2 error: {:.8f}'.format(mean_L2_error))
-
         index = epoch%self.fem_test.shape[0]
         scalar_field_paraview(self.args, self.fem_test[index].data.numpy(), self.poisson, "train_f")
         scalar_field_paraview(self.args, self.fem_solution[index].data.numpy(), self.poisson, "train_fem_u")

@@ -27,13 +27,13 @@ class TrainerDolfin(Trainer):
         else:
             return self.loss_function_amortized(x_control, x_state)
 
-    def loss_function_amortized(self, x_control, x_state):
+    def loss_function_amortized_sub(self, x_control, x_state):
         # loss function is defined so that PDE is satisfied
 
         # x_control should be torch tensor with shape (batch, input_size)
         # x_state should be torch tensor with shape (batch, input_size)
-        assert(x_control.shape == x_state.shape and len(x_control.shape) == 2)
-     
+        assert(x_control.shape == x_state.shape and len(x_control.shape) == 2)        
+
         term1 = batch_mat_vec(self.A_sp, x_state)
         term1 = 0.5*term1*x_state
         
@@ -43,10 +43,37 @@ class TrainerDolfin(Trainer):
         term3 = 0.25*x_state**4*self.weight_area
         
         term4 = batch_mat_vec(self.B_sp, x_control)
-        term4 = term4*x_state
+        term4 = term4*x_state 
 
-        loss = term1.sum() + 10*term2.sum() + 10*term3.sum() - term4.sum()
-        return loss
+        batch_loss = term1.sum(dim=1) + 10*term2.sum(dim=1) + 10*term3.sum(dim=1) - term4.sum(dim=1)
+
+        return batch_loss
+
+
+    def loss_function_amortized(self, x_control, x_state):
+        batch_loss = self.loss_function_amortized_sub(x_control, x_state)
+        return batch_loss.sum()
+
+    def amortization_gap(self, x_control, x_state, y_state):
+        loss_amortized = self.loss_function_amortized_sub(x_control, x_state)
+        loss_fem = self.loss_function_amortized_sub(x_control, y_state)
+        gap = loss_amortized - loss_fem
+        return gap.sum()
+
+    def normed_L2_error(self, x_control, x_state, y_state):
+        error = x_state - y_state
+        tmp1 = batch_mat_vec(self.B_sp, error)
+        tmp1 = tmp1*error
+        L2_error = tmp1.sum(dim=1).sqrt() 
+
+        tmp2 = batch_mat_vec(self.B_sp, y_state)
+        tmp2 = tmp2*y_state
+        L2_solution = tmp2.sum(dim=1).sqrt() 
+
+        normalize_error = L2_error/L2_solution
+        
+        return normalize_error.sum()
+    
 
     def loss_function_supervised(self, x_state, y_state):
         diff = (x_state - y_state)
@@ -107,8 +134,9 @@ class TrainerDolfin(Trainer):
 
         for epoch in range(self.args.epochs):
             train_loss = self.train(epoch)
-            test_loss = self.test_by_loss(epoch)
             mean_L2_error = self.test_by_FEM(epoch)
+            test_loss = self.test_by_loss(epoch)
+            
             print('\n\n')
 
             # self.debug()

@@ -1,7 +1,6 @@
 '''Train the neural network to be a powerful PDE solver, where physical laws have been built in
 Nonlinear case - Soft Robot
 '''
-
 import torch
 from torch import optim
 from torch.utils.data import Dataset, DataLoader, TensorDataset
