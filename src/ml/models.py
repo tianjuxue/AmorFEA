@@ -53,7 +53,17 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.args = args
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
+        # self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
+        #                          nn.SELU(), 
+        #                          nn.Linear(args.input_size, args.input_size),
+        #                          nn.SELU(), 
+        #                          nn.Linear(args.input_size, args.input_size))
+
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
+                                 nn.SELU(), 
+                                 nn.Linear(args.input_size, args.input_size),
+                                 nn.SELU(), 
+                                 nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 
                                  nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(), 

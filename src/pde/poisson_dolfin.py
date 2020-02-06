@@ -135,7 +135,7 @@ if __name__ == '__main__':
     # adjacency_matrix = pde.get_adjacency_matrix()
  
     u = pde.solve_problem_variational_form()
-    save_solution(args, u, '/dolfin/u')
-    save_solution(args, pde.source, 'dolfin/f')
+    # save_solution(args, u, '/dolfin/u')
+    # save_solution(args, pde.source, 'dolfin/f')
 
  

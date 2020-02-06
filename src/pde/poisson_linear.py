@@ -128,5 +128,5 @@ if __name__ == '__main__':
     args = arguments.args
     pde = PoissonLinear(args)
     u = pde.solve_problem_variational_form()
-    save_solution(args, u, 'linear/u')
-    save_solution(args, pde.source, 'linear/f')
+    # save_solution(args, u, 'linear/u')
+    # save_solution(args, pde.source, 'linear/f')

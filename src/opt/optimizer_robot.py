@@ -108,14 +108,40 @@ class OptimizerRobotPoint(OptimizerRobot):
             L, sol = self.evaluate(s)
             Ls.append(L)
             sols.append(sol)
+            print("Evaluated L", L)
         return np.asarray(Ls), np.asarray(sols)
 
+
+class OptimizerRobotPointFree(OptimizerRobotPoint):
+    def __init__(self, args):
+        super(OptimizerRobotPointFree, self).__init__(args)
+
+    def optimize(self, x_initial=None):
+        if x_initial is None:
+            x_initial = 0.1*np.ones(self.args.input_size)
+ 
+        x = x_initial
+        self._obj(x)
+        options = {'maxiter': 100, 'disp': True, 'adaptive': True} # CG > BFGS > Newton-CG
+        res = opt.minimize(fun=self._obj,
+                           x0=x_initial, 
+                           method='Nelder-Mead', 
+                           options=options)
+        x_opt = x
+        return x_opt
+
+    def _obj(self, source):
+        solution, _ = self.trainer.forward_prediction(source, model=None, para_data=self.para_data)         
+        L = self.L_dist(torch.tensor(solution, dtype=torch.float).unsqueeze(0))
+        print(L)
+        return L.item()
+ 
 
 class OptimizerRobotPointSurrogate(OptimizerRobotPoint):
     def __init__(self, args):
         super(OptimizerRobotPointSurrogate, self).__init__(args)
 
-    def optimize(self, alpha=1e-2, x_initial=None, maxiter=1000, log_interval=100):
+    def optimize(self, alpha=1e-2, x_initial=None, maxiter=100, log_interval=100):
         return self._opt(alpha=alpha, x_initial=x_initial, maxiter=maxiter, log_interval=log_interval)
 
     def _obj(self, source):
@@ -271,7 +297,6 @@ def run_one_case(args,
 
     optimizer_nn = OptimizerRobotPointSurrogate(args)
     optimizer_nn.target_point = target_point  
-
     optimizer_ad = OptimizerRobotPointAdjoint(args)
     optimizer_ad.target_point = target_point
 
@@ -308,16 +333,13 @@ def run_one_case(args,
     scalar_field_paraview(args, optimal_solution, optimizer_nn.trainer.poisson, "/robot/deploy/u" + str(case_number))
 
 
-def run(args):
+def run_walltime(args):
     # Manully tuned best parameter
     # target_coos = heart_shape()
     # target_coos = target_coos[:, [3,7,11,15]]
 
     target_coos = circle_shape()
-    # alpha_ad1_list = [1e-3, 1e-3, 1e-3, 1e-3]
-    # alpha_nn_list = [1e-3, 1e-3, 1e-3, 1e-3]
-    # alpha_ad2_list = [1e-3, 1e-3, 1e-3, 1e-3]
-    
+
     alpha_ad1_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
     alpha_nn_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
     alpha_ad2_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
@@ -345,6 +367,37 @@ def run(args):
                      i)
 
 
+def run_step(args):
+    target_coos = circle_shape()
+    alpha_list = [1e-2, 1e-2, 2*1e-3, 2*1e-3]
+    for case_number in range(2, 4):
+        optimizer_nn = OptimizerRobotPointSurrogate(args)
+        optimizer_ad = OptimizerRobotPointAdjoint(args)
+        print("case_number", case_number)
+        target_point = target_coos[:, case_number]
+        optimizer_nn.target_point = target_point
+        optimizer_ad.target_point = target_point     
+
+        _, wall_time_ad, objective_ad, source_ad = run_single_opt(alpha_list[case_number], 100, 1, optimizer_ad)
+        _, wall_time_nn, objective_nn, source_nn = run_single_opt(alpha_list[case_number], 100, 1, optimizer_nn)
+        objective_nn, _ = optimizer_nn.batch_evaluate(source_nn)
+        np.savez(args.root_path + '/' + args.numpy_path 
+                 + '/robot/deploy/case_step' + str(case_number) + '.npz',  
+                 objective_ad=objective_ad,
+                 objective_nn=objective_nn,
+                 target_point=target_point,
+                 wall_time_ad=wall_time_ad,
+                 wall_time_nn=wall_time_nn
+                )
+
+def run_gradient_free(args):
+    target_coos = circle_shape()
+    target_point = target_coos[:, 1]
+    optimizer_fr = OptimizerRobotPointFree(args)
+    optimizer_fr.target_point = target_point 
+    optimizer_fr.optimize()
+
+
 if __name__ == '__main__':
     args = arguments.args
-    run(args)
+    run_step(args)

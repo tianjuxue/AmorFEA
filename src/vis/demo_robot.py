@@ -117,11 +117,38 @@ def plot_sol_batch():
     for i in range(4):
         plot_sol(args, i)
 
+
+def plot_step_batch():
+    for case_number in range(0, 4):
+        data = np.load(args.root_path + '/' + args.numpy_path 
+                + '/robot/deploy/case_step' + str(case_number) + '.npz')
+        wall_time_ad = data['wall_time_ad']
+        objective_ad = data['objective_ad']
+        wall_time_nn = data['wall_time_nn']
+        objective_nn = data['objective_nn']
+
+        wall_time_ad = wall_time_ad - wall_time_ad[0]
+        wall_time_nn = wall_time_nn - wall_time_nn[0]
+        print(wall_time_ad[-1])
+        print(wall_time_nn[-1])
+
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.plot(np.arange(len(objective_ad)), objective_ad, linestyle='-', marker='.', color='blue', label='Adjoint Method') 
+        ax.plot(np.arange(len(objective_nn)), objective_nn, linestyle='-', color='red', marker='.', label='AmorFEA')
+        # ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.legend(loc='upper right', prop={'size': 12})
+        ax.tick_params(labelsize=14)
+        fig.savefig(args.root_path + '/images/robot/step' + str(case_number) + '.png', bbox_inches='tight')
+  
+
 if __name__ == '__main__':
     args = arguments.args
     # plot_mesh(args)
     # plot_sol_batch()
     # plot_walltime_batch()
     # plot_demo_sol(args)
-    plot_robot_and_trajectory(args)
-    # plt.show()
+    # plot_robot_and_trajectory(args)
+    plot_step_batch()
+    plt.show()

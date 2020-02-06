@@ -99,7 +99,6 @@ class TrainerRobot(Trainer):
         # with certain operations. Still looking into this issue.
         # see https://github.com/pytorch/pytorch/issues/9674
         # TODO(Tianju): Do the if selection in optimizer module
-
         bc_btm_mat = torch.tensor(bc_btm_mat).float().to_sparse()
         bc_lx_mat = torch.tensor(bc_lx_mat).float().to_sparse()
         bc_ly_mat = torch.tensor(bc_ly_mat).float().to_sparse()
@@ -140,10 +139,11 @@ class TrainerRobot(Trainer):
         self.data_Y = self.data_X
         self.train_loader, self.test_loader = self.shuffle_data()
         self.model = RobotNetwork(self.args, self.graph_info)
+
         self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
                                               self.args.model_path + '/' + self.poisson.name + '/model_sss'))
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6) 
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-4, max_iter=20, history_size=40)
 
         for epoch in range(self.args.epochs):
@@ -152,8 +152,8 @@ class TrainerRobot(Trainer):
             recon_batch = self.model(self.fem_test)
             scalar_field_paraview(self.args, recon_batch[0].data.numpy(), self.poisson, "nn")
             print('\n')
-            # torch.save(self.model.state_dict(), self.args.root_path + '/' +
-            #            self.args.model_path + '/' + self.poisson.name + '/model_' + str(0))
+            torch.save(self.model.state_dict(), self.args.root_path + '/' +
+                       self.args.model_path + '/' + self.poisson.name + '/model_' + str(0))
 
     def forward_prediction(self, source, model=None, para_data=None):
         """Serves as ground truth computation
@@ -235,4 +235,4 @@ def get_hessian_inv(J, x):
 if __name__ == "__main__":
     args = arguments.args
     trainer = TrainerRobot(args, True)
-    trainer.debug()
+    trainer.run()

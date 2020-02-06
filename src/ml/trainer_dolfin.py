@@ -125,10 +125,13 @@ class TrainerDolfin(Trainer):
 
     def run(self):
         self.model = MLP(self.args, self.graph_info)
-        self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
-                                              self.args.model_path + '/' + self.poisson.name + '/model_mlp_3'))
+        # self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
+        #                                       self.args.model_path + '/' + self.poisson.name + '/model_mlp_3'))
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
+        self.model.load_state_dict(torch.load(self.args.root_path + '/' + 
+                                              self.args.model_path + '/' + self.poisson.name + '/model_mlp_0'))
+
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-5)
         # self.optimizer = optim.LBFGS(self.model.parameters(), lr=1e-2, max_iter=20, history_size=40)
         # self.optimizer = optim.SGD(self.model.parameters(), lr=1e-6, momentum=0.85)
 
@@ -138,12 +141,8 @@ class TrainerDolfin(Trainer):
             test_loss = self.test_by_loss(epoch)
             
             print('\n\n')
-
-            # self.debug()
-            # exit()
-
-            # torch.save(self.model.state_dict(), self.args.root_path + '/' +
-            #            self.args.model_path + '/' + self.poisson.name + '/model_' + str(0))
+            torch.save(self.model.state_dict(), self.args.root_path + '/' +
+                       self.args.model_path + '/' + self.poisson.name + '/model_0')
 
     def debug(self):
         source = torch.ones(self.poisson.num_dofs).unsqueeze(0)
