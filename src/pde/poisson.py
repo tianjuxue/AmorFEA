@@ -45,9 +45,7 @@ class Poisson(object):
             for bcoo in bmesh_coos:
                 if np.linalg.norm(bcoo - self.coo_dof[i]) < 1e-8:
                     boundary_flags[i] = 1
-
-        print(boundary_flags.sum())
-
+        # print(boundary_flags.sum())
         self.boundary_flags = boundary_flags
 
     def _tri_area(self, coo_0, coo_1, coo_2):

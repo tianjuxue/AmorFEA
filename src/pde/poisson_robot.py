@@ -10,20 +10,24 @@ from ..graph.visualization import scalar_field_paraview, save_solution
 
 
 class PoissonRobot(Poisson):
+
     def __init__(self, args):
         super(PoissonRobot, self).__init__(args)
         self.name = 'robot'
 
     def _build_mesh(self):
         args = self.args
-        self.width = 0.5  
+        self.width = 0.5
         # mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
-        mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(self.width, 10), 2, 20, 'crossed')
+        mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(
+            self.width, 10), 2, 20, 'crossed')
         self.mesh = mesh
 
     def _build_function_space(self):
         width = self.width
+
         class Exterior(fa.SubDomain):
+
             def inside(self, x, on_boundary):
                 return on_boundary and (
                     fa.near(x[1], 10) or
@@ -32,28 +36,34 @@ class PoissonRobot(Poisson):
                     fa.near(x[1], 0))
 
         class Left(fa.SubDomain):
+
             def inside(self, x, on_boundary):
                 return on_boundary and fa.near(x[0], 0)
 
         class Right(fa.SubDomain):
+
             def inside(self, x, on_boundary):
                 return on_boundary and fa.near(x[0], width)
 
         class Bottom(fa.SubDomain):
+
             def inside(self, x, on_boundary):
                 return on_boundary and fa.near(x[1], 0)
 
         class Top(fa.SubDomain):
+
             def inside(self, x, on_boundary):
                 return on_boundary and fa.near(x[1], 10)
 
-        self.exteriors_dic = {'left': Left(), 'right': Right(), 'bottom': Bottom(), 'top': Top()}
+        self.exteriors_dic = {
+            'left': Left(), 'right': Right(), 'bottom': Bottom(), 'top': Top()}
         self.exterior = Exterior()
 
         self.V = fa.VectorFunctionSpace(self.mesh, 'P', 1)
         self.W = fa.FunctionSpace(self.mesh, 'DG', 0)
 
-        self.sub_domains = fa.MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.sub_domains = fa.MeshFunction(
+            "size_t", self.mesh, self.mesh.topology().dim() - 1)
         self.sub_domains.set_all(0)
 
         self.boundaries_id_dic = {'left': 1, 'right': 2, 'bottom': 3, 'top': 4}
@@ -68,7 +78,7 @@ class PoissonRobot(Poisson):
 
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
-        self.bcs = [ self.bottom]
+        self.bcs = [self.bottom]
 
         boundaries = [self.bottom, self.left, self.right]
         boundary_fn = [fa.Constant((0., 0.)),
@@ -83,7 +93,7 @@ class PoissonRobot(Poisson):
         x1 = self.coo_dof[:, 0]
         x2 = self.coo_dof[:, 1]
         # [bottom, left_x, left_y, right_x, right_y]
-        boundary_flags_list = [np.zeros(self.num_dofs) for i in range(5)] 
+        boundary_flags_list = [np.zeros(self.num_dofs) for i in range(5)]
         counter_left = 0
         counter_right = 0
         for i in range(self.num_dofs):
@@ -91,19 +101,19 @@ class PoissonRobot(Poisson):
                 boundary_flags_list[0][i] = 1
             else:
                 if x1[i] < 1e-10:
-                    if counter_left%2 == 0:
+                    if counter_left % 2 == 0:
                         boundary_flags_list[1][i] = 1
                     else:
                         boundary_flags_list[2][i] = 1
                     counter_left += 1
 
                 if x1[i] > self.width - 1e-10:
-                    if counter_right%2 == 0:
+                    if counter_right % 2 == 0:
                         boundary_flags_list[3][i] = 1
                     else:
                         boundary_flags_list[4][i] = 1
                     counter_right += 1
-        self.boundary_flags_list =  boundary_flags_list
+        self.boundary_flags_list = boundary_flags_list
 
     # Deformation gradient
     def DeformationGradient(self, u):
@@ -119,7 +129,7 @@ class PoissonRobot(Poisson):
         young_mod = 100
         poisson_ratio = 0.3
         shear_mod = young_mod / (2 * (1 + poisson_ratio))
-        bulk_mod = young_mod / (3 * (1 - 2*poisson_ratio))
+        bulk_mod = young_mod / (3 * (1 - 2 * poisson_ratio))
         d = u.geometric_dimension()
         F = self.DeformationGradient(u)
         F = fa.variable(F)
@@ -129,7 +139,7 @@ class PoissonRobot(Poisson):
         # Plane strain assumption
         Jinv = J**(-2 / 3)
         energy = ((shear_mod / 2) * (Jinv * (I1 + 1) - 3) +
-                  (bulk_mod / 2) * (J - 1)**2)  
+                  (bulk_mod / 2) * (J - 1)**2)
         return energy
 
     def check_energy(self, dof_data):
@@ -145,9 +155,9 @@ class PoissonRobot(Poisson):
         u = fa.Function(self.V)
         du = fa.TrialFunction(self.V)
         v = fa.TestFunction(self.V)
-        E = self._energy_density(u)*fa.dx
+        E = self._energy_density(u) * fa.dx
         dE = fa.derivative(E, u, v)
-        jacE = fa.derivative(dE, u, du) 
+        jacE = fa.derivative(dE, u, du)
         fa.solve(dE == 0, u, self.bcs, J=jacE)
         return u
 
@@ -178,7 +188,8 @@ class PoissonRobot(Poisson):
         F11 = np.transpose(np.array(F11)) - 1
 
         F = [F00, F01, F10, F11]
-        np.save(self.args.root_path + '/' + self.args.numpy_path + '/robot/' + 'F' + '.npy', F)
+        np.save(self.args.root_path + '/' +
+                self.args.numpy_path + '/robot/' + 'F' + '.npy', F)
         return F
 
     def compute_areas(self):
@@ -187,7 +198,7 @@ class PoissonRobot(Poisson):
         for i in range(self.W.dim()):
             w.vector()[:] = 0
             w.vector()[i] = 1
-            area[i] = fa.assemble(w*fa.dx)
+            area[i] = fa.assemble(w * fa.dx)
         return area
 
     def debug(self):

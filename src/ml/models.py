@@ -54,14 +54,10 @@ class TensorNet(nn.Module):
 class MLP_2(nn.Module):
 
     def __init__(self, args, graph_info):
-        super(MLP, self).__init__()
+        super(MLP_2, self).__init__()
         self.args = args
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(),
-                                 nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(),
-                                 nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(),
                                  nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(),
@@ -78,12 +74,10 @@ class MLP_2(nn.Module):
 class MLP_1(nn.Module):
 
     def __init__(self, args, graph_info):
-        super(MLP, self).__init__()
+        super(MLP_1, self).__init__()
         self.args = args
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size),
-                                 nn.SELU(),
-                                 nn.Linear(args.input_size, args.input_size),
                                  nn.SELU(),
                                  nn.Linear(args.input_size, args.input_size))
 
@@ -98,7 +92,7 @@ class MLP_1(nn.Module):
 class MLP_0(nn.Module):
 
     def __init__(self, args, graph_info):
-        super(MLP, self).__init__()
+        super(MLP_0, self).__init__()
         self.args = args
         self.bc_value, self.interior_flag, _, self.B_sp = graph_info
         self.fcc = nn.Sequential(nn.Linear(args.input_size, args.input_size))
@@ -198,12 +192,6 @@ class RobotNetwork(nn.Module):
         int_u = self.fcc2(bc_u)
         return [lx_u, ly_u, rx_u, ry_u, bc_u], int_u
 
-    # def get_para_data(self):
-    #     angles = robot_network.get_angles(source)
-    #     self.para.data[:self.shapes[0]//2] = angles.squeeze()
-    #     _, int_u = robot_network.get_disp(source)
-    #     self.para.data[self.shapes[0]//2:] = int_u.squeeze()
-
     def forward(self, x):
         [lx_u, ly_u, rx_u, ry_u, bc_u], int_u = self.get_disp(x)
         int_u = batch_mat_vec(self.mat_list[-1].transpose(0, 1), int_u)
@@ -243,9 +231,6 @@ class RobotSolver(nn.Module):
             self.mat_list[-1].transpose(0, 1), self.para_disp.unsqueeze(0))
         u = lx_u + ly_u + rx_u + ry_u + int_u
         return u
-
-
-'''Commonly used functions'''
 
 
 def constrain(x, mat_list, coo_diff, joints, angles):
