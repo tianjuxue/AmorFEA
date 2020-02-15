@@ -1,7 +1,3 @@
-"""Warning: mshr generates mesh randomly - with same input parameter the mesh might be different
-Better save the mesh and then always load (the same) mesh later on to avoid bugs caused by inconsistency
-"""
-
 import numpy as np
 import fenics as fa
 import mshr
@@ -46,8 +42,6 @@ if __name__ == '__main__':
     args = arguments.args
     case_flag = 0
     if case_flag == 0:
-        # mesh = unit_square()
-        # file = fa.File(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
         mesh = unit_disk()
         file = fa.File(args.root_path + '/' +
                        args.solutions_path + '/saved_mesh/mesh_disk.xml')
@@ -59,12 +53,4 @@ if __name__ == '__main__':
         mesh = slender_rod()
         file = fa.File(args.root_path + '/' +
                        args.solutions_path + '/saved_mesh/mesh_robot.xml')
-
     file << mesh
-
-    # loaded_mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_robot.xml')
-    # print(loaded_mesh.num_vertices())
-
-    # file = fa.File(args.root_path + '/' + args.solutions_path + '/mesh.pvd')
-    # mesh.rename('mesh', 'mesh')
-    # file << mesh

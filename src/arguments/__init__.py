@@ -1,6 +1,3 @@
-"""Iterate over submodules, adding args from each."""
-
-
 def make_parser():
     import argparse
     parser = argparse.ArgumentParser()

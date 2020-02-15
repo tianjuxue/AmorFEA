@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import scipy.optimize as opt
 import time
-import matplotlib.pyplot as plt
 from .optimizer import Optimizer
 from ..ml.trainer_robot import TrainerRobot
 from ..ml.models import RobotNetwork, RobotSolver
@@ -130,7 +129,7 @@ class OptimizerRobotPointFree(OptimizerRobotPoint):
         x = x_initial
         self._obj(x)
         options = {'maxiter': 100, 'disp': True,
-                   'adaptive': True} 
+                   'adaptive': True}
         res = opt.minimize(fun=self._obj,
                            x0=x_initial,
                            method='Nelder-Mead',
@@ -239,16 +238,6 @@ def heart_shape():
     x = norm_factor * x_para(t)
     y = norm_factor * y_para(t)
     return np.asarray([x, y])
-
-
-def plot_hs():
-    x, y = heart_shape()
-    fig = plt.figure(0)
-    plt.tick_params(labelsize=14)
-    # plt.xlabel('xlabel')
-    # plt.ylabel('ylabel')
-    # plt.legend(loc='upper left')
-    plt.plot(x, y)
 
 
 def circle_shape():

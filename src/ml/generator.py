@@ -68,44 +68,6 @@ def save_generated_data(args, pde, distribution, samples):
             '-' + str(samples.shape[0]) + '-' + str(pde.num_dofs) + '.npy', samples)
 
 
-def f1(x1, x2):
-    return np.ones_like(x1)
-
-
-def f2(x1, x2):
-    return np.sin(np.pi * x1) + 2
-
-
-def get_graph_attributes(func, graph):
-    return func(graph.x1, graph.x2)
-
-
-def generate_deterministic_samples(args, graph, num_samps):
-    M = graph.num_vertices
-    samples = get_graph_attributes(f2, graph)
-    samples = np.expand_dims(samples, axis=0)
-    samples = np.repeat(samples, num_samps, axis=0)
-    np.save(args.root_path + '/' + args.numpy_path + '/nonlinear/' + graph.name +
-            '-Det-' + str(num_samps) + '-' + str(M) + '.npy', samples)
-
-
-def linear_visual(args, graph):
-    model_path = args.root_path + '/' + args.model_path + '/linear/model_6'
-    model = torch.load(model_path)
-    source = get_graph_attributes(f1, graph)
-    solution = model_prediction(source, graph, model)
-    grad_u_1 = np.matmul(graph.gradient_x1, solution)
-    grad_u_2 = np.matmul(graph.gradient_x2, solution)
-    scalar_field_3D(solution, graph)
-    scalar_field_2D(solution, graph)
-    vector_field_2D(grad_u_1, grad_u_2, graph)
-    np_data = np.load(args.root_path + '/' +
-                      args.numpy_path + '/linear/error_11.npy')
-    L_inf = np.trim_zeros(np_data[0, :], 'b')
-    L_fro = np.trim_zeros(np_data[1, :], 'b')
-    plot_training(L_inf, L_fro)
-
-
 if __name__ == '__main__':
     args = arguments.args
     case_flag = 1
