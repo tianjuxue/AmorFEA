@@ -33,7 +33,7 @@ To compute traditional finite element analysis (FEA) solutions, do:
 python -m src.pde.poisson_dolfin
 ```
 
-To draw i.i.d. data for control parameters from  $${p(\boldsymbol \lambda)}$$, do:
+To draw i.i.d. data for control parameters, do:
 
 ```
 python -m src.ml.generator
