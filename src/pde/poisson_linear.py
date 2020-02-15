@@ -10,6 +10,7 @@ from ..graph.visualization import scalar_field_paraview, save_solution
 
 
 class PoissonLinear(Poisson):
+
     def __init__(self, args):
         super(PoissonLinear, self).__init__(args)
         self.name = 'linear'
@@ -17,18 +18,21 @@ class PoissonLinear(Poisson):
     def _build_mesh(self):
         args = self.args
         # mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_square.xml')
-        mesh = fa.Mesh(args.root_path + '/' + args.solutions_path + '/saved_mesh/mesh_disk.xml')
+        mesh = fa.Mesh(args.root_path + '/' +
+                       args.solutions_path + '/saved_mesh/mesh_disk.xml')
         # mesh = fa.RectangleMesh(fa.Point(0, 0), fa.Point(1, 1), 3, 3)
         self.mesh = mesh
 
     def _build_function_space(self):
         class Exterior(fa.SubDomain):
+
             def inside(self, x, on_boundary):
                 return on_boundary
 
-        self.exterior = Exterior()        
+        self.exterior = Exterior()
         self.V = fa.FunctionSpace(self.mesh, 'P', 1)
-        self.sub_domains = fa.MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.sub_domains = fa.MeshFunction(
+            "size_t", self.mesh, self.mesh.topology().dim() - 1)
         self.sub_domains.set_all(0)
         self.normal = fa.FacetNormal(self.mesh)
         self.ds = fa.Measure("ds")(subdomain_data=self.sub_domains)
@@ -54,7 +58,7 @@ class PoissonLinear(Poisson):
     def _energy_density(self, u):
         # variational energy density of u
         # energy = 0.5*self.medium*fa.dot(fa.grad(u), fa.grad(u)) - u*self.source
-        energy = 0.5*fa.dot(fa.grad(u), fa.grad(u)) - u*self.source
+        energy = 0.5 * fa.dot(fa.grad(u), fa.grad(u)) - u * self.source
         return energy
 
     def energy(self, u):
@@ -64,31 +68,32 @@ class PoissonLinear(Poisson):
         u = fa.Function(self.V)
         du = fa.TrialFunction(self.V)
         v = fa.TestFunction(self.V)
-        E = self._energy_density(u)*fa.dx
+        E = self._energy_density(u) * fa.dx
         dE = fa.derivative(E, u, v)
-        jacE = fa.derivative(dE, u, du) 
+        jacE = fa.derivative(dE, u, du)
         fa.solve(dE == 0, u, self.bcs, J=jacE)
         return u
 
     def solve_problem_weak_form(self):
-        u = fa.Function(self.V)      
+        u = fa.Function(self.V)
         du = fa.TrialFunction(self.V)
-        v  = fa.TestFunction(self.V)
-        F  = fa.inner(fa.grad(u), fa.grad(v))*fa.dx - self.source*v*fa.dx
-        J  = fa.derivative(F, u, du)  
+        v = fa.TestFunction(self.V)
+        F = fa.inner(fa.grad(u), fa.grad(v)) * fa.dx - self.source * v * fa.dx
+        J = fa.derivative(F, u, du)
 
-        # The problem in this case is indeed linear, but using a nonlinear solver doesn't hurt
+        # The problem in this case is indeed linear, but using a nonlinear
+        # solver doesn't hurt
         problem = fa.NonlinearVariationalProblem(F, u, self.bcs, J)
-        solver  = fa.NonlinearVariationalSolver(problem)
+        solver = fa.NonlinearVariationalSolver(problem)
         solver.solve()
         return u
-        
+
     def solve_problem_matrix_approach(self):
         u = fa.TrialFunction(self.V)
         v = fa.TestFunction(self.V)
-        a = fa.inner(fa.grad(u), fa.grad(v))*fa.dx 
-        L = self.source*v*fa.dx
- 
+        a = fa.inner(fa.grad(u), fa.grad(v)) * fa.dx
+        L = self.source * v * fa.dx
+
         # equivalent to solve(a == L, U, b)
         A = fa.assemble(a)
         b = fa.assemble(L)
@@ -101,8 +106,8 @@ class PoissonLinear(Poisson):
     def compute_operators(self):
         u = fa.TrialFunction(self.V)
         v = fa.TestFunction(self.V)
-        form_a = fa.inner(fa.grad(u), fa.grad(v))*fa.dx 
-        form_b = u*v*fa.dx 
+        form_a = fa.inner(fa.grad(u), fa.grad(v)) * fa.dx
+        form_b = u * v * fa.dx
 
         A = fa.assemble(form_a)
         B = fa.assemble(form_b)
@@ -111,7 +116,7 @@ class PoissonLinear(Poisson):
 
         [bc.apply(A) for bc in self.bcs]
         A_np_modified = np.array(A.array())
- 
+
         return A_np, B_np, A_np_modified
 
     def debug(self):
@@ -120,7 +125,7 @@ class PoissonLinear(Poisson):
         u = fa.Function(self.V)
         u.vector()[4] = 1
         # v.vector()[:] = 1
-        value = np.array(fa.assemble(fa.inner(fa.grad(u), fa.grad(v))*fa.dx))
+        value = np.array(fa.assemble(fa.inner(fa.grad(u), fa.grad(v)) * fa.dx))
         print(value)
 
 

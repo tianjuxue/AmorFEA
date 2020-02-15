@@ -4,6 +4,7 @@ import fenics as fa
 
 
 class Poisson(object):
+
     def __init__(self, args):
         self.args = args
         self._build_mesh()
@@ -23,7 +24,7 @@ class Poisson(object):
         self.d_v = fa.dof_to_vertex_map(self.V)
         self.coo_dof = self.V.tabulate_dof_coordinates()
         self.coo_ver = self.mesh.coordinates()
-        self.cells = self.mesh.cells()  
+        self.cells = self.mesh.cells()
         self._set_boundary_flags()
         self._set_detailed_boundary_flags()
 
@@ -44,14 +45,14 @@ class Poisson(object):
             for bcoo in bmesh_coos:
                 if np.linalg.norm(bcoo - self.coo_dof[i]) < 1e-8:
                     boundary_flags[i] = 1
-        
+
         print(boundary_flags.sum())
 
         self.boundary_flags = boundary_flags
 
     def _tri_area(self, coo_0, coo_1, coo_2):
-        return np.absolute(0.5*((coo_2[1] - coo_0[1])*(coo_1[0] - coo_0[0]) 
-                          -(coo_1[1] - coo_0[1])*(coo_2[0] - coo_0[0])))
+        return np.absolute(0.5 * ((coo_2[1] - coo_0[1]) * (coo_1[0] - coo_0[0])
+                                  - (coo_1[1] - coo_0[1]) * (coo_2[0] - coo_0[0])))
 
     def _cell_area(self, cell):
         return self._tri_area(self.coo_ver[cell[0]], self.coo_ver[cell[1]], self.coo_ver[cell[2]])
@@ -82,4 +83,4 @@ class Poisson(object):
                 for i in cell:
                     if self.d_v[index] == i:
                         weight_area[index] += self._cell_area(cell)
-        return 1./3.*weight_area
+        return 1. / 3. * weight_area
