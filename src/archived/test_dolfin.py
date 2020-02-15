@@ -10,7 +10,7 @@ mesh = da.UnitSquareMesh(n, n)
 
 # case_flag = 0 runs the default case by
 # http://www.dolfin-adjoint.org/en/latest/documentation/poisson-mother/poisson-mother.html
-# change to any other value runs the other case 
+# change to any other value runs the other case
 case_flag = 1
 
 x = fa.SpatialCoordinate(mesh)
@@ -22,8 +22,10 @@ W = fa.FunctionSpace(mesh, "DG", 0)
 # g is the ground truth for source term
 # f is the control variable
 if case_flag == 0:
-    g = da.interpolate(da.Expression("1/(1+alpha*4*pow(pi, 4))*w", w=w, alpha=alpha, degree=3), W)
-    f = da.interpolate(da.Expression("1/(1+alpha*4*pow(pi, 4))*w", w=w, alpha=alpha, degree=3), W)
+    g = da.interpolate(da.Expression(
+        "1/(1+alpha*4*pow(pi, 4))*w", w=w, alpha=alpha, degree=3), W)
+    f = da.interpolate(da.Expression(
+        "1/(1+alpha*4*pow(pi, 4))*w", w=w, alpha=alpha, degree=3), W)
 else:
     g = da.interpolate(da.Expression(("sin(2*pi*x[0])"),  degree=3), W)
     f = da.interpolate(da.Expression(("sin(2*pi*x[0])"),  degree=3), W)
@@ -38,7 +40,8 @@ da.solve(F == 0, u, bc)
 d = da.Function(V)
 d.vector()[:] = u.vector()[:]
 
-J = da.assemble((0.5 * fa.inner(u - d, u - d)) * fa.dx + alpha / 2 * f ** 2 * fa.dx)
+J = da.assemble((0.5 * fa.inner(u - d, u - d)) *
+                fa.dx + alpha / 2 * f ** 2 * fa.dx)
 control = da.Control(f)
 rf = da.ReducedFunctional(J, control)
 

@@ -5,12 +5,15 @@ from torch import optim
 
 # For given y, minimize this to get x; you get x=y
 def loss_function(y, x):
-    return 0.5*x**2 - x*y
+    return 0.5 * x**2 - x * y
 
 # The total derivative of the objective w.r.t. y is 4y - 2
 # The partial derivative of the objective w.r.t y is 2y
+
+
 def objective(y, x):
     return (x - 1)**2 + y**2
+
 
 def run():
     x = torch.tensor([0.], requires_grad=True, dtype=torch.float)
