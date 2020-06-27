@@ -6,6 +6,7 @@ from .models import LinearRegressor, MLP_0, MLP_1, MLP_2, MixedNetwork, TensorNe
 from ..pde.poisson_dolfin import PoissonDolfin
 from .. import arguments
 from ..graph.visualization import scalar_field_paraview
+import matplotlib.pyplot as plt
 
 
 class TrainerDolfin(Trainer):
@@ -132,7 +133,7 @@ class TrainerDolfin(Trainer):
         print('====> Epoch: {} Test set loss: {:.6f}'.format(epoch, test_loss))
         print('====> Epoch: {} Test set gap: {:.6f}'.format(epoch, test_gap))
         print('====> Epoch: {} Test set error: {:.6f}'.format(epoch, test_error))
-        return test_loss
+        return test_loss, test_gap, test_error
 
     def run(self):
         self.model = MLP_2(self.args, self.graph_info)
@@ -143,11 +144,76 @@ class TrainerDolfin(Trainer):
         for epoch in range(self.args.epochs):
             train_loss = self.train(epoch)
             mean_L2_error = self.test_by_FEM(epoch)
-            test_loss = self.test_by_loss(epoch)
+            self.test_by_loss(epoch)
             print('\n\n')
             torch.save(self.model.state_dict(), self.args.root_path + '/' +
                        self.args.model_path + '/' + self.poisson.name + '/model_0')
 
+    def stability_helper(self, index, model_cls):
+        total_rounds = 5
+        gap_tosave = []
+        error_tosave = []
+        for r in range(total_rounds):
+            print("Start model {}, round {}".format(index, r))
+            np.random.seed(r + 2)
+            torch.manual_seed(r + 2)            
+            self.initialization()
+            self.model = model_cls(self.args, self.graph_info)
+            # self.optimizer = optim.Adam(self.model.parameters(), lr=7*1e-5)
+            self.optimizer = optim.Adam(self.model.parameters(), lr=1e-5)
+            self.args.epochs = 100
+            error = []
+            gap = []
+            for epoch in range(self.args.epochs):
+                train_loss = self.train(epoch)
+                _, test_gap, test_error = self.test_by_loss(epoch)
+                gap.append(test_gap)
+                error.append(test_error)
+                print('\n\n')    
+            gap_tosave.append(gap)
+            error_tosave.append(error)   
+        np.savez(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
+                 '/stability/stability'+ str(index) + '.npz',
+                 gap=np.asarray(gap_tosave),
+                 error=np.asarray(error_tosave),
+                 )
+
+    def stability(self):
+        model_cls_list = [MLP_0, MLP_1, MLP_2]
+        num_models = len(model_cls_list)
+        if False:
+            for i, model_cls in enumerate(model_cls_list):
+                self.stability_helper(i, model_cls)
+        data_collect = []
+        for i in range(num_models):
+            data = np.load(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
+                 '/stability/stability{}.npz'.format(i))
+            # print(data['gap'])  
+            # print(data['error'])
+            data_collect.append(data)
+
+        fig = plt.figure(0)
+        for i in range(num_models):
+            plt.plot(data_collect[i]['gap'][0], linestyle='--', marker='o', label='MLP_{}'.format(i))
+        plt.legend()
+
+        fig = plt.figure(1)
+        for i in range(num_models):
+            plt.plot(data_collect[i]['error'][0], linestyle='--', marker='o', label='MLP_{}'.format(i))
+        plt.legend()
+
+        truncating_epoch = -1
+        for i in range(num_models):
+            data = data_collect[i]
+            gap = data['gap']
+            error = data['error']
+            print("mean of gap is {}, std is {}, for MLP {}".format(gap[:, truncating_epoch].mean(),
+                gap[:, truncating_epoch].std(), i))
+            print("mean of error is {}, std is {}, for MLP {}".format(error[:, truncating_epoch].mean(),
+                error[:, truncating_epoch].std(), i))
+        plt.show()
+
+   
     def debug(self):
         source = torch.ones(self.poisson.num_dofs).unsqueeze(0)
         solution = self.model(source)
@@ -158,4 +224,6 @@ class TrainerDolfin(Trainer):
 if __name__ == "__main__":
     args = arguments.args
     trainer = TrainerDolfin(args)
-    trainer.run()
+    trainer.stability()
+    # python -m src.opt.optimizer_dolfin
+

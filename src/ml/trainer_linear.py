@@ -16,7 +16,7 @@ class TrainerLinear(Trainer):
         self.initialization()
 
     def loss_function(self, x_control, x_state, y_state):
-        if self.args.supvervised_flag:
+        if self.args.supervised_flag:
             return self.loss_function_supervised(x_state, y_state)
         else:
             return self.loss_function_amortized(x_control, x_state)
@@ -41,7 +41,7 @@ class TrainerLinear(Trainer):
         return loss
 
     def initialization(self):
-        self.args.supvervised_flag = True
+        # self.args.supervised_flag = False
 
         self.data_X = np.load(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
                               '/Uniform-10000-' + str(self.poisson.num_dofs) + '.npy')
@@ -105,13 +105,15 @@ class TrainerLinear(Trainer):
         L_inf = np.max(np.abs(Q_trained - Q_true))
         L_inf_norm = np.max(np.abs(Q_true))
         L_fro = np.linalg.norm(np.abs(Q_trained - Q_true))
+        L_fro_norm = np.linalg.norm(np.abs(Q_true))
 
+        print('====> L_fro norm for matrix error is {}'.format(L_fro / L_fro_norm))
         print('====> L_inf norm for matrix error is {}'.format(L_inf / L_inf_norm))
         return L_inf / L_inf_norm
 
     def run(self):
         self.model = LinearRegressor(self.args, self.graph_info)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=5*1e-4)
 
         L_inf_list = []
         for epoch in range(self.args.epochs):
@@ -120,15 +122,15 @@ class TrainerLinear(Trainer):
             mean_L2_error = self.test_by_FEM(epoch)
             L_inf = self.test_by_W(epoch)
             L_inf_list.append(L_inf)
-            if epoch > 10:
-                np.save(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
-                        '/L_inf.npy', np.asarray(L_inf_list))
-                exit()
-
+  
+            np.save(self.args.root_path + '/' + self.args.numpy_path + '/' + self.poisson.name +
+                    '/L_inf_{}.npy'.format('s' if self.args.supervised_flag else 'a'), np.asarray(L_inf_list))
+                 
             print('\n\n')
             if False:
                 torch.save(self.model, self.args.root_path + '/' +
                            self.args.model_path + '/linear/model_' + str(0))
+
 
     def debug(self):
         source = torch.ones(self.poisson.num_dofs).unsqueeze(0)
@@ -139,5 +141,9 @@ class TrainerLinear(Trainer):
 
 if __name__ == "__main__":
     args = arguments.args
+    args.epochs = 100
     trainer = TrainerLinear(args)
+    args.supervised_flag = False
+    trainer.run()
+    args.supervised_flag = True
     trainer.run()

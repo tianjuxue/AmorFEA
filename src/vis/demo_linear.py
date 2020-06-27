@@ -32,12 +32,17 @@ def plot_L(args):
     path_s = args.root_path + '/' + args.numpy_path + '/linear/L_inf_s.npy'
     L_inf_a = np.load(path_a)[:-1]
     L_inf_s = np.load(path_s)[:-1]
+    truncate_idx = 31
+
+    print(L_inf_s)
+    print(L_inf_a)
+
     fig = plt.figure()
     ax = fig.gca()
-    epoch = np.arange(0, len(L_inf_a), 1)
-    ax.plot(epoch, L_inf_a, linestyle='--',
+    epoch = np.arange(0, len(L_inf_a) , 1)
+    ax.plot(epoch[:truncate_idx], L_inf_a[:truncate_idx], linestyle='--',
             marker='o', color='red', label='AmorFEA')
-    ax.plot(epoch, L_inf_s, linestyle='--', marker='o',
+    ax.plot(epoch[:truncate_idx], L_inf_s[:truncate_idx], linestyle='--', marker='o',
             color='blue', label='Supervised Training')
     ax.set_yscale('log')
     ax.legend(loc='upper right', prop={'size': 12})
